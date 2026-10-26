@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>部署自检 · 订单流学习系统</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px 60px; background: #0b1016; color: #e6e8ea; font: 14px/1.7 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 6px; color: #f0b90b; }
+  .lead { color: #9aa4b2; margin: 0 0 18px; }
+  .card { border: 1px solid #253041; border-radius: 12px; padding: 18px; margin: 0 0 16px; background: #111821; }
+  .card h2 { font-size: 16px; margin: 0 0 10px; color: #cfd6e0; }
+  code, pre { background: #0a0f15; border: 1px solid #253041; border-radius: 6px; padding: 2px 6px; color: #ffd479; word-break: break-all; }
+  pre { padding: 10px 12px; overflow: auto; white-space: pre-wrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #1d2733; vertical-align: top; word-break: break-all; }
+  th { color: #9aa4b2; font-weight: 500; }
+  .ok { color: #26a69a; font-weight: 600; }
+  .bad { color: #ef5350; font-weight: 600; }
+  .warn { color: #f0b90b; font-weight: 600; }
+  .hint { color: #9aa4b2; font-size: 13px; }
+  .verdict { font-size: 18px; font-weight: 700; margin: 10px 0 4px; }
+  ul { padding-left: 20px; }
+  a { color: #f0b90b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>部署自检</h1>
+  <p class="lead">这个页面不依赖 assets，即使网站资源没传全也能打开。它会逐个检查 index.html 引用的脚本是否返回正常，并给出修复建议。把本页结果截图发给维护者即可定位问题。</p>
+
+  <div class="card">
+    <h2>当前访问信息</h2>
+    <table>
+      <tr><th>完整地址</th><td id="loc"></td></tr>
+      <tr><th>站点根路径</th><td id="base"></td></tr>
+      <tr><th>页面 URL 目录</th><td id="dir"></td></tr>
+      <tr><th>浏览器</th><td id="ua"></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>检查结果</h2>
+    <div id="verdict" class="verdict">检查中…</div>
+    <p id="summary" class="hint"></p>
+    <table id="result-table">
+      <thead><tr><th>文件</th><th>状态</th><th>Content-Type</th><th>大小</th><th>说明</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>如果检查失败，按下面顺序排查</h2>
+    <ul>
+      <li><b>检查 1：站点根目录是否直接有 index.html</b>。如果文件被放在 <code>dist/</code> 或 <code>某文件夹/</code> 下面，把里面的内容移到根目录（根目录应同时看到 <code>index.html</code> 和 <code>assets/</code>）。</li>
+      <li><b>检查 2：是否上传完整</b>。完整包有 49 个文件；至少要保证 <code>assets/js/core/namespace.js</code>、<code>assets/js/app/app.js</code> 等脚本能直接打开。</li>
+      <li><b>检查 3：是否上传的是 ZIP 包并成功解压</b>。EdgeOne Pages Drop 支持 ZIP 自动解压，但 ZIP 根目录必须是 index.html，不能再套一层 <code>dist/</code>。本站预打包的 <code>orderflow-learning-deploy.zip</code> 就是根目录结构。</li>
+      <li><b>检查 4：刷新缓存</b>。Ctrl+F5（或手机清除站点数据）后重试；若之前成功安装过 PWA，改 <code>sw.js</code> 的 CACHE_VERSION 后重新部署。</li>
+      <li><b>检查 5：路径大小写/文件权限</b>。本站资源都是小写英文路径；如果平台把路径改成了别的层级（如 <code>/project/xxx/</code>），直接用相对路径的 index.html 仍应能加载，除非资源未上传。</li>
+    </ul>
+    <p class="hint">更多部署说明见项目里的 DEPLOY.md。</p>
+  </div>
+
+  <div class="card">
+    <h2>直接打开测试 URL</h2>
+    <div id="links"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var loc = location.href;
+  var dir = loc.replace(/[^/]*$/, '');
+  document.getElementById('loc').textContent = loc;
+  document.getElementById('dir').textContent = dir;
+  document.getElementById('base').textContent = location.origin;
+  document.getElementById('ua').textContent = navigator.userAgent;
+
+  var tbody = document.querySelector('#result-table tbody');
+  var verdictEl = document.getElementById('verdict');
+  var summaryEl = document.getElementById('summary');
+  var important = [
+    'assets/js/core/namespace.js',
+    'assets/js/core/store.js',
+    'assets/js/app/app.js',
+    'assets/js/app/pages/exam.js',
+    'assets/js/chart/chart.js',
+    'assets/js/content/m09-real-cases.js',
+    'assets/js/data/real/nq-gc.js',
+    'manifest.webmanifest',
+    'sw.js',
+    'assets/icons/icon-192.png'
+  ];
+
+  function escapeText(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function addRow(label, status, type, size, note) {
+    var tr = document.createElement('tr');
+    var cls = status >= 200 && status < 300 ? 'ok' : 'bad';
+    tr.innerHTML = '<td>' + escapeText(label) + '</td>' +
+      '<td class="' + (status === 0 ? 'warn' : cls) + '">' + (status === 0 ? '请求失败' : status) + '</td>' +
+      '<td>' + escapeText(type || '-') + '</td>' +
+      '<td>' + (size ? (Math.round(size / 1024) + ' KB') : '-') + '</td>' +
+      '<td>' + escapeText(note || '') + '</td>';
+    tbody.appendChild(tr);
+  }
+
+  async function check(url, label) {
+    try {
+      var resp = await fetch(url, { cache: 'no-store' });
+      var text = await resp.clone().text();
+      var ct = resp.headers.get('content-type') || '-';
+      addRow(label || url, resp.status, ct, text.length, resp.status === 200 ? '' : '文件没找到/未上传');
+      return { ok: resp.ok, text: text, url: url };
+    } catch (e) {
+      addRow(label || url, 0, '-', 0, '请求失败：' + (e && e.message));
+      return { ok: false, text: '', url: url };
+    }
+  }
+
+  (async function () {
+    var failed = 0, checked = 0;
+    // 1) 先取 index.html，检查它引用的全部本地脚本
+    var index = await check(dir + 'index.html', 'index.html');
+    if (!index.ok) {
+      verdictEl.innerHTML = '<span class="bad">✖ 连 index.html 都打不开：当前地址可能不是站点根目录，或部署未成功。</span>';
+      summaryEl.textContent = '请确认你打开的是 EdgeOne/GitCode 分配给你的网站地址（不是控制台预览页），并确认仓库/部署根目录有 index.html。';
+      return;
+    }
+    var refs = [];
+    var html = index.text;
+    var re = /(?:src|href)\s*=\s*["']([^"']+)["']/g, m;
+    while ((m = re.exec(html))) {
+      var u = m[1];
+      if (/^(https?:|data:|#|\/\/|mailto:)/i.test(u)) continue;
+      refs.push(u.replace(/^\.\//, ''));
+    }
+    refs = Array.from(new Set(refs)).filter(function (u) { return /\.(js|css|webmanifest|png)$/i.test(u); });
+    for (var i = 0; i < refs.length; i++) {
+      checked++;
+      var r = await check(dir + refs[i], refs[i]);
+      if (!r.ok) failed++;
+    }
+    // 2) 再检查几个关键文件
+    for (var j = 0; j < important.length; j++) {
+      checked++;
+      var r2 = await check(dir + important[j], important[j]);
+      if (!r2.ok) failed++;
+    }
+    if (failed === 0) {
+      verdictEl.innerHTML = '<span class="ok">✔ 所有资源都能正常访问</span>';
+      summaryEl.textContent = '资源完整（共检查 ' + checked + ' 项）。如果首页仍卡在“正在加载”，请 Ctrl+F5 强制刷新；仍不行请按 F12 看 Console 第一行报错并截图反馈。';
+    } else {
+      verdictEl.innerHTML = '<span class="bad">✖ 有 ' + failed + ' 个文件打不开（共检查 ' + checked + ' 项）</span>';
+      summaryEl.textContent = '说明部署包不完整或路径层级不对：站点根目录应直接有 index.html 和 assets/。修复后重新上传完整 zip。';
+    }
+    // 3) 给出可直接打开的链接
+    var links = document.getElementById('links');
+    ['index.html', 'assets/js/core/namespace.js', 'manifest.webmanifest', 'sw.js'].forEach(function (p) {
+      var a = document.createElement('a');
+      a.href = dir + p; a.target = '_blank'; a.rel = 'noopener'; a.textContent = dir + p;
+      a.style.display = 'block'; a.style.margin = '4px 0';
+      links.appendChild(a);
+    });
+  })();
+})();
+</script>
+</body>
+</html>

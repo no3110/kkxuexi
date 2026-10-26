@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="离线学习网站：道氏理论、价格行为 PA、ICT/SMC、订单流、拍卖理论、威科夫、ATR 风控、综合实战与真实 NQ/GC 案例，配可交互 K 线、标注讲解与实战考核。">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#080b11">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="订单流学习">
+  <title>订单流与价格行为 · 0→实战学习系统</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1117'/%3E%3Cpath d='M7 21l5-6 4 4 6-8 3 3' stroke='%2326a69a' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+  <script>
+  /* 部署自检兜底：如果部署包不完整/路径多套了一层，页面会卡在“正在加载”；6 秒后显示具体原因与自检入口。 */
+  (function () {
+    var errors = [];
+    window.__LQ_ASSET_ERRORS__ = errors;
+    window.addEventListener('error', function (e) {
+      var t = e.target;
+      if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+        errors.push({ tag: t.tagName, url: t.src || t.href || '' });
+      }
+    }, true);
+    function showDiagnostics() {
+      var boot = document.querySelector('.boot-loading');
+      if (!boot) return;
+      var box = document.createElement('div');
+      box.id = 'deploy-diagnostics';
+      box.style.cssText = 'max-width:660px;margin:36px auto;padding:20px 22px;border:1px solid #f0b90b;border-radius:12px;background:#141a22;color:#e6e8ea;font:14px/1.75 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:left';
+      var h = document.createElement('h2');
+      h.textContent = '页面没有正常启动';
+      h.style.cssText = 'margin:0 0 10px;color:#f0b90b;font-size:20px';
+      box.appendChild(h);
+      var p1 = document.createElement('p');
+      p1.textContent = '常见原因：部署包不完整（assets 目录没有上传），或压缩包多套了一层文件夹（站点根目录必须直接有 index.html 和 assets/）。';
+      box.appendChild(p1);
+      var p2 = document.createElement('p');
+      p2.textContent = '当前地址：' + location.href;
+      box.appendChild(p2);
+      if (errors.length) {
+        var p3 = document.createElement('p');
+        p3.textContent = '加载失败的资源（按 F12 在 Network/Console 也能看到）：';
+        box.appendChild(p3);
+        var ul = document.createElement('ul');
+        ul.style.cssText = 'margin:6px 0 10px 18px;padding:0;word-break:break-all';
+        errors.slice(0, 20).forEach(function (item) {
+          var li = document.createElement('li');
+          li.textContent = item.tag + ' ' + item.url;
+          ul.appendChild(li);
+        });
+        box.appendChild(ul);
+      } else {
+        var p4 = document.createElement('p');
+        p4.textContent = '没有捕获到资源错误，请按 F12 打开 Console 查看第一行报错。';
+        box.appendChild(p4);
+      }
+      var p5 = document.createElement('p');
+      p5.style.marginTop = '12px';
+      var a = document.createElement('a');
+      a.href = 'deploy-check.html';
+      a.textContent = '→ 打开部署自检页（逐个检查文件是否上传成功）';
+      a.style.cssText = 'color:#f0b90b;font-weight:600';
+      p5.appendChild(a);
+      box.appendChild(p5);
+      boot.innerHTML = '';
+      boot.appendChild(box);
+      document.title = '加载失败 · 订单流学习系统';
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () { setTimeout(showDiagnostics, 6000); });
+    } else {
+      setTimeout(showDiagnostics, 6000);
+    }
+  })();
+  </script>
+</head>
+<body>
+  <div id="app">
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
+    <header id="site-header" class="site-header"></header>
+    <div class="layout" id="site-layout">
+      <aside id="site-sidebar" class="site-sidebar" aria-label="课程目录" hidden></aside>
+      <main id="main-content" class="main-content" tabindex="-1">
+        <div class="boot-loading">
+          <div class="boot-spinner" aria-hidden="true"></div>
+          <p>正在加载学习系统…</p>
+          <noscript><p>本学习网站需要启用 JavaScript 才能运行。</p></noscript>
+        </div>
+      </main>
+    </div>
+    <footer id="site-footer" class="site-footer"></footer>
+  </div>
+  <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="true"></div>
+  <div id="search-dialog" class="search-dialog" hidden></div>
+
+  <!-- 核心层（Lead 维护，顺序不可改） -->
+  <script src="assets/js/core/namespace.js"></script>
+  <script src="assets/js/core/inline.js"></script>
+  <script src="assets/js/core/store.js"></script>
+  <!-- 数据层（Lead 维护） -->
+  <script src="assets/js/data/generator.js"></script>
+  <script src="assets/js/data/registry.js"></script>
+  <script src="assets/js/data/real/nq-gc.js"></script>
+  <script src="assets/js/data/scenarios/demo.js"></script>
+  <!-- 课程内容（content 维护；新增模块才加文件） -->
+  <script src="assets/js/content/m01-dow.js"></script>
+  <script src="assets/js/content/m02-pa.js"></script>
+  <script src="assets/js/content/m03-ict-smc.js"></script>
+  <script src="assets/js/content/m04-orderflow.js"></script>
+  <script src="assets/js/content/m05-wyckoff.js"></script>
+  <script src="assets/js/content/m06-atr-risk.js"></script>
+  <script src="assets/js/content/m07-integration.js"></script>
+  <script src="assets/js/content/m08-auction.js"></script>
+  <script src="assets/js/content/m09-real-cases.js"></script>
+  <script src="assets/js/content/exam-bank.js"></script>
+  <!-- 图表引擎（chart-engineer 维护） -->
+  <script src="assets/js/chart/indicators.js"></script>
+  <script src="assets/js/chart/overlays.js"></script>
+  <script src="assets/js/chart/panels.js"></script>
+  <script src="assets/js/chart/engine.js"></script>
+  <script src="assets/js/chart/chart.js"></script>
+  <!-- 应用层（site-engineer 维护；app.js 必须最后） -->
+  <script src="assets/js/app/errors.js"></script>
+  <script src="assets/js/app/catalog.js"></script>
+  <script src="assets/js/app/ui.js"></script>
+  <script src="assets/js/app/router.js"></script>
+  <script src="assets/js/app/search.js"></script>
+  <script src="assets/js/app/pages/home.js"></script>
+  <script src="assets/js/app/pages/roadmap.js"></script>
+  <script src="assets/js/app/pages/plan.js"></script>
+  <script src="assets/js/app/pages/module.js"></script>
+  <script src="assets/js/app/pages/lesson.js"></script>
+  <script src="assets/js/app/pages/exam.js"></script>
+  <script src="assets/js/app/pages/real.js"></script>
+  <script src="assets/js/app/pages/tools.js"></script>
+  <script src="assets/js/app/pages/glossary.js"></script>
+  <script src="assets/js/app/pages/references.js"></script>
+  <script src="assets/js/app/pages/notfound.js"></script>
+  <script src="assets/js/app/pwa.js"></script>
+  <script src="assets/js/app/app.js"></script>
+</body>
+</html>

@@ -1,8 +1,8 @@
-/* PWA 支持（site-engineer 维护 · V2）
+/* Offline support (V3)
  * - 只在 http(s) 下注册 Service Worker；file:// 双击打开时静默跳过（不报错、不写 __LQ_ERRORS__）
- * - beforeinstallprompt 时显示「安装到桌面」按钮（用户可关闭；安装成功后自动隐藏）
+ * - 保留静态资源离线缓存，不显示站点内的安装入口或安装提示
  * - 在线/离线状态监听 + toast 提示
- * - 暴露 LQ.pwa 供 QA 检查（supported / registered / installAvailable / isStandalone / promptInstall）
+ * - 暴露 LQ.pwa 供 QA 检查（supported / registered）
  */
 (function (global) {
   'use strict';
@@ -10,79 +10,20 @@
 
   var PROTOCOL = (global.location && global.location.protocol) || '';
   var HTTP = PROTOCOL === 'http:' || PROTOCOL === 'https:';
-  var deferredPrompt = null;
-  var installBtn = null;
-  var registered = false;
-
   var pwa = {
     supported: !!global.navigator && 'serviceWorker' in global.navigator,
     http: HTTP,
     registered: false,
     registerError: null,
-    installAvailable: false,
-    prompted: false,
-    isStandalone: function () {
-      try {
-        if (global.navigator && global.navigator.standalone) return true;
-        return !!(global.matchMedia && global.matchMedia('(display-mode: standalone)').matches);
-      } catch (err) { return false; }
-    },
-    promptInstall: function () {
-      if (!deferredPrompt) return false;
-      var prompt = deferredPrompt;
-      deferredPrompt = null;
-      pwa.installAvailable = false;
-      try {
-        prompt.prompt();
-        if (prompt.userChoice && typeof prompt.userChoice.then === 'function') {
-          prompt.userChoice.then(function (choice) {
-            if (choice && choice.outcome === 'accepted') {
-              LQ.ui.toast('正在安装到桌面…');
-              hideInstallButton();
-            } else {
-              LQ.ui.toast('已取消安装，可稍后再试');
-            }
-          }).catch(function () { /* ignore */ });
-        }
-      } catch (err) { /* ignore */ }
-      return true;
-    },
     clear: function () {
       try { if (global.navigator && global.navigator.serviceWorker) { /* 只做只读查询，不注销 */ } } catch (err) { /* ignore */ }
     }
   };
 
-  function hideInstallButton() {
-    if (installBtn && installBtn.parentNode) installBtn.parentNode.removeChild(installBtn);
-    installBtn = null;
-    pwa.installAvailable = false;
-  }
-
-  function showInstallButton() {
-    if (installBtn || !document.body) return;
-    installBtn = document.createElement('button');
-    installBtn.type = 'button';
-    installBtn.id = 'pwa-install';
-    installBtn.className = 'pwa-install-btn';
-    installBtn.innerHTML = '<span class="pwa-install-icon">' + (LQ.ui ? LQ.ui.icon('spark') : '') + '</span>' +
-      '<span class="pwa-install-text">安装到桌面</span>' +
-      '<span class="pwa-install-close" role="button" aria-label="稍后安装" tabindex="0">×</span>';
-    installBtn.addEventListener('click', function (event) {
-      var isClose = event.target && event.target.closest && event.target.closest('.pwa-install-close');
-      if (isClose) {
-        hideInstallButton();
-        return;
-      }
-      pwa.promptInstall();
-    });
-    document.body.appendChild(installBtn);
-  }
-
   function registerServiceWorker() {
     if (!HTTP || !pwa.supported) return;
     try {
-      global.navigator.serviceWorker.register('./sw.js', { scope: './' }).then(function (registration) {
-        registered = true;
+      global.navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' }).then(function (registration) {
         pwa.registered = true;
         pwa.scope = registration && registration.scope ? registration.scope : './';
         try { document.body.setAttribute('data-pwa', 'registered'); } catch (err) { /* ignore */ }
@@ -111,18 +52,9 @@
     }
   }
 
-  function bindInstallPrompt() {
+  function suppressInstallPrompt() {
     global.addEventListener('beforeinstallprompt', function (event) {
       try { event.preventDefault(); } catch (err) { /* ignore */ }
-      deferredPrompt = event;
-      pwa.installAvailable = true;
-      if (!pwa.isStandalone()) showInstallButton();
-    });
-    global.addEventListener('appinstalled', function () {
-      deferredPrompt = null;
-      pwa.installAvailable = false;
-      hideInstallButton();
-      LQ.ui.toast('已安装到桌面，可离线使用');
     });
   }
 
@@ -145,7 +77,7 @@
       return;
     }
     try { document.body.setAttribute('data-pwa', 'pending'); } catch (err) { /* ignore */ }
-    bindInstallPrompt();
+    suppressInstallPrompt();
     bindOnlineOffline();
     try { document.body.setAttribute('data-online', global.navigator && global.navigator.onLine === false ? 'false' : 'true'); } catch (err) { /* ignore */ }
     if (global.document && global.document.readyState === 'complete') {

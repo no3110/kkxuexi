@@ -242,6 +242,7 @@
           scenario: scenario,
           height: chartHeight(section.height),
           annotations: initial.annotations || [],
+          tools: true,
           viewport: initial.focus || undefined
         });
       } catch (err) {
@@ -636,7 +637,7 @@
       '<header class="lesson-head ' + LQ.ui.moduleClass(lesson.moduleId) + '">' +
       '<div class="lesson-meta">' +
       '<a class="badge badge-brand" href="#/module/' + encodeURIComponent(lesson.moduleId) + '">' + LQ.ui.icon('layers') + esc((mod && mod.title) || '') + '</a>' +
-      '<span class="badge badge-muted">' + esc(String(lesson.minutes || 12)) + ' 分钟</span>' +
+      '<span class="badge badge-muted">分镜课件 · 阅读 · 理解自测</span>' +
       '<span class="badge badge-muted">' + esc(lesson.level || '') + '</span>' +
       '<span class="badge badge-muted">' + esc('全站第 ' + (indexInAll + 1) + ' / ' + totalLessons + ' 课') + '</span>' +
       (lesson.en ? '<span class="badge badge-muted">' + esc(lesson.en) + '</span>' : '') +
@@ -652,12 +653,23 @@
       '</div>' +
       '</header>' +
       tocHTML(lesson, moduleLessons) +
+      '<div data-course-player></div>' +
+      '<div class="course-reading-toggle"><button type="button" class="btn btn-sm btn-outline" data-reading-toggle aria-expanded="false">展开完整讲义与图表练习</button><span>先看课件，再做文末自测；按掌握程度推进。</span></div>' +
       '<div class="lesson-body">' +
-      '<article class="prose">' + renderStaticSections(sections) + '</article>' +
+      '<article class="prose" data-full-reading hidden>' + renderStaticSections(sections) + '</article>' +
       quizHTML(lesson) +
       sourcesHTML(lesson) +
       pagerHTML(lesson) +
       '</div>';
+
+    state.cleanups.push(LQ.coursePlayer.mount(page.querySelector('[data-course-player]'), lesson));
+    page.querySelector('[data-reading-toggle]').addEventListener('click', function (e) {
+      var article = page.querySelector('[data-full-reading]'); article.hidden = !article.hidden;
+      e.currentTarget.setAttribute('aria-expanded', String(!article.hidden));
+      e.currentTarget.textContent = article.hidden ? '展开完整讲义与图表练习' : '收起完整讲义';
+      if (!article.hidden && !state.charts.length) mountCharts();
+      state.charts.forEach(function (chart) { if (chart.resize) chart.resize(); });
+    });
 
     // 图表必须在 DOM 插入后创建（依赖容器宽度）
     function mountCharts() {
@@ -692,7 +704,7 @@
     try { LQ.store.progress.setLastLesson(lesson.id); } catch (err) { /* ignore */ }
 
     // 图表挂载需等页面插入文档后（宽度可测）：用 microtask + rAF 双保险
-    setTimeout(mountCharts, 0);
+    // Full-reading charts mount only when opened; the slide chart owns its own lifecycle.
     if (global.requestAnimationFrame) global.requestAnimationFrame(function () { /* 已挂载 */ });
 
     page.__lqDestroy = function () {
@@ -721,7 +733,7 @@
       '<header class="lesson-head ' + LQ.ui.moduleClass(lessonMeta.moduleId) + '">' +
       '<div class="lesson-meta">' +
       '<span class="badge badge-brand">' + esc((mod && mod.title) || '') + '</span>' +
-      '<span class="badge badge-muted">' + esc(String(lessonMeta.minutes || 12)) + ' 分钟</span>' +
+      '<span class="badge badge-muted">阅读 · 理解自测</span>' +
       '<span class="badge badge-muted">' + esc(lessonMeta.level || '') + '</span>' +
       '</div>' +
       '<h1 class="lesson-title">' + esc(lessonMeta.title) + '</h1>' +

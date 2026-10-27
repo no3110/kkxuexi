@@ -1,4 +1,4 @@
-/* 学习路线图（site-engineer 维护）：阶段 0 地基 + 9 个模块阶段（V2） */
+/* 学习路线图：阶段 0 地基 + 9 个进阶模块（V3） */
 (function (global) {
   'use strict';
   var LQ = global.LQ = global.LQ || {};
@@ -11,7 +11,7 @@
     return '<a class="stage-lesson' + (done ? ' is-done' : '') + '" href="#/lesson/' + encodeURIComponent(lesson.id) + '">' +
       LQ.ui.icon(done ? 'check-circle' : 'circle', 'lesson-check') +
       '<span class="stage-lesson-title">' + esc(real.title) + '</span>' +
-      '<span class="lesson-mins">' + esc(String(real.minutes || 12)) + '′</span>' +
+      '<span class="lesson-mins">课件 + 自测</span>' +
       '</a>';
   }
 
@@ -21,10 +21,10 @@
     var itemsHTML = '';
     data.items.forEach(function (item) {
       var done = false;
-      try { done = LQ.store.progress.isPlanTaskDone(item.id); } catch (err) { done = false; }
+      try { done = LQ.store.progress.isPlanTaskDone(item.id) || LQ.store.progress.isDone('m00-0' + item.id.slice(-1)); } catch (err) { done = false; }
       itemsHTML += '<label class="foundation-task' + (done ? ' is-done' : '') + '" data-fx="' + esc(item.id) + '">' +
         '<input type="checkbox" data-foundation-id="' + esc(item.id) + '"' + (done ? ' checked' : '') + '>' +
-        '<span class="foundation-text"><b>' + esc(item.title) + '</b>' + esc(item.text) + '</span>' +
+        '<span class="foundation-text"><b>' + esc(item.title) + '</b>' + esc(item.text) + '<a class="foundation-learn" href="#/lesson/m00-0' + item.id.slice(-1) + '">查看通俗讲解与自测 →</a></span>' +
         '</label>';
     });
     var refLinks = '';
@@ -46,14 +46,14 @@
       '<p class="stage-tagline">' + esc(data.tagline) + '</p>' +
       '</div>' +
       '<div class="stage-side">' +
-      '<span class="badge badge-muted">' + esc(LQ.site.formatMinutes(data.minutes)) + '</span>' +
+      '<span class="badge badge-muted">6 节地基课程 · 分镜讲解</span>' +
       '<span class="badge badge-info" data-foundation-state>' + progress.done + '/' + progress.total + ' 项</span>' +
       '</div>' +
       '</div>' +
       '<div class="stage-body">' +
       '<div><div class="stage-section-title">' + LQ.ui.icon('target') + '阶段目标</div>' +
       '<p class="stage-goal">' + esc(data.goal) + '</p></div>' +
-      '<div><div class="stage-section-title">' + LQ.ui.icon('check-circle') + '地基自查清单（勾选后会保存）</div>' +
+      '<div><div class="stage-section-title">' + LQ.ui.icon('check-circle') + '先学讲解，再做自查（点击下方链接进入课程）</div>' +
       '<div class="stage-foundation-grid" data-foundation-list>' + itemsHTML + '</div>' +
       (refLinks ? '<div class="plan-task-links mt-16"><span class="text-xs dim">' + esc('相关课程：') + '</span>' + refLinks + '</div>' : '') +
       '</div>' +
@@ -63,7 +63,7 @@
       '<p class="stage-goal">' + esc(data.checkpoint) + '</p>' +
       '<p class="stage-goal mt-8"><span class="badge badge-bull">产出</span> ' + esc(data.deliverable) + '</p></div>' +
       '<div class="stage-foot">' +
-      '<div class="flex gap-8 flex-wrap"><a class="btn btn-outline btn-sm" href="#/plan">' + LQ.ui.icon('calendar') + '第 1 周计划</a>' +
+      '<div class="flex gap-8 flex-wrap"><a class="btn btn-primary btn-sm" href="#/lesson/m00-01">' + LQ.ui.icon('play') + '开始地基第一课</a><a class="btn btn-outline btn-sm" href="#/plan">' + LQ.ui.icon('calendar') + '自主学习计划</a>' +
       '<a class="btn btn-ghost btn-sm" href="#/module/m01">' + LQ.ui.icon('arrow-right') + '进入模块 1</a></div>' +
       '</div>' +
       '</div></article>';
@@ -98,7 +98,7 @@
       '</div>' +
       '<div class="stage-side">' +
       stateBadge +
-      '<span class="badge badge-muted">' + esc(mod.level || '') + ' · ' + esc(LQ.site.formatMinutes(mod.minutes)) + '</span>' +
+      '<span class="badge badge-muted">' + esc(mod.level || '') + ' · ' + lessons.length + ' 课</span>' +
       '<div class="stage-progress">' + LQ.ui.barHTML(progress.pct) +
       '<div class="progress-meta"><span>进度</span><b>' + progress.done + '/' + progress.total + '</b></div></div>' +
       '</div>' +
@@ -124,7 +124,7 @@
 
   function listHTML() {
     var html = foundationCardHTML();
-    LQ.site.modules().forEach(function (mod) { html += moduleCardHTML(mod); });
+    LQ.site.modules().forEach(function (mod) { if (mod.id !== 'm00') html += moduleCardHTML(mod); });
     return html;
   }
 
@@ -136,7 +136,7 @@
       Array.prototype.forEach.call(list.querySelectorAll('[data-fx]'), function (label) {
         var id = label.getAttribute('data-fx');
         var done = false;
-        try { done = LQ.store.progress.isPlanTaskDone(id); } catch (err) { done = false; }
+        try { done = LQ.store.progress.isPlanTaskDone(id) || LQ.store.progress.isDone('m00-0' + id.slice(-1)); } catch (err) { done = false; }
         var input = label.querySelector('input');
         if (input) input.checked = done;
         label.classList.toggle('is-done', done);
@@ -161,6 +161,7 @@
       if (!id) return;
       try {
         LQ.store.progress.setPlanTask(id, !!input.checked);
+        LQ.store.progress.setDone('m00-0' + id.slice(-1), !!input.checked);
       } catch (err) {
         LQ.ui.toast('保存失败：' + (err && err.message ? err.message : err), 'bad');
       }
@@ -178,20 +179,20 @@
       page.innerHTML =
         '<div class="page-head">' +
         '<div class="eyebrow">' + esc('学习路线图') + '</div>' +
-        '<h1 class="page-title">' + esc('从地基到实战：' + (stats.moduleCount + 1) + ' 个阶段') + '</h1>' +
-        '<p class="page-lead">' + esc('先花一周把地基打下（阶段 0），再按 ' + stats.moduleCount + ' 个模块依次推进。每个阶段都给出目标、课程清单、关卡与产出——学完不是"看完"，而是能独立完成那张图、那份计划。') + '</p>' +
+        '<h1 class="page-title">' + esc('从地基到实战：' + stats.moduleCount + ' 个阶段') + '</h1>' +
+        '<p class="page-lead">' + esc('从6节市场语言讲解起步，再逐步学习趋势、价格行为与订单流。每课先看分镜课件，再做理解自测；按自己的掌握程度推进，不设固定学习时长。') + '</p>' +
         '</div>' +
         '<div class="roadmap-intro">' +
         '<div class="panel">' +
         '<div class="panel-title">' + LQ.ui.icon('route') + '怎么用这张路线图</div>' +
         '<p class="text-sm muted mb-8">' + esc('顺序不是死的：如果你已经有价格行为基础，可以跳过部分课程，但阶段 0 的地基与风控阶段不要跳。每完成一课，回到这里看进度；每个阶段的"关卡"是自检清单，过不了就回看对应课程。') + '</p>' +
-        '<p class="text-sm muted mb-0">' + esc('全站 ' + stats.lessonCount + ' 课，课程本身约 ' + stats.hours + ' 小时（' + stats.minutes + ' 分钟）；加上标注练习与复盘，推荐用 ' + LQ.site.planWeeks() + ' 周完成（见学习计划页）。') + '</p>' +
+        '<p class="text-sm muted mb-0">' + esc('全站 ' + stats.lessonCount + ' 课，进度由理解与自测记录决定。知识学完后，用30个模拟交易日检验你的执行能力。') + '</p>' +
         '</div>' +
         '<div class="panel">' +
         '<div class="panel-title">' + LQ.ui.icon('chart') + '当前总进度</div>' +
         '<div class="flex items-center gap-16">' +
         LQ.ui.ringHTML(sum.pct, { className: 'ring-bull', label: '总进度 ' + sum.pct + '%' }) +
-        '<div class="progress-card-info"><b>' + sum.done + ' / ' + sum.total + ' 课</b><span>' + esc('平均每课 12-15 分钟') + '</span></div>' +
+        '<div class="progress-card-info"><b>' + sum.done + ' / ' + sum.total + ' 课</b><span>' + esc('按理解程度推进 · 不限时长') + '</span></div>' +
         '</div>' +
         '<div class="roadmap-legend mt-16">' +
         '<div class="legend-row"><span class="legend-dot is-done"></span>已完成（课程或地基自查）</div>' +
@@ -202,9 +203,9 @@
         '</div>' +
         '<div class="stage-list" data-roadmap-list>' + listHTML() + '</div>' +
         '<div class="mt-24 flex gap-8 flex-wrap">' +
-        '<a class="btn btn-primary" href="#/plan">' + LQ.ui.icon('calendar') + esc('看 ' + LQ.site.planWeeks() + ' 周学习计划') + '</a>' +
-        '<a class="btn btn-outline" href="#/lesson/m01-01">' + LQ.ui.icon('play') + '从第一课开始</a>' +
-        '<a class="btn btn-ghost" href="#/exam">' + LQ.ui.icon('target') + '实战考核</a>' +
+        '<a class="btn btn-primary" href="#/plan">' + LQ.ui.icon('calendar') + '看自主学习计划</a>' +
+        '<a class="btn btn-outline" href="#/lesson/m00-01">' + LQ.ui.icon('play') + '从地基第一课开始</a>' +
+        '<a class="btn btn-ghost" href="#/simulation">' + LQ.ui.icon('target') + '30日模拟考核</a>' +
         '</div>';
 
       bind(page);

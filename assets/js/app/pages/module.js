@@ -22,7 +22,7 @@
       '<span class="lesson-card-title">' + esc(real.title) + '</span>' +
       '<span class="lesson-card-summary">' + esc(real.summary || '') + '</span>' +
       '<span class="lesson-card-meta">' +
-      '<span class="badge badge-muted">' + esc(String(real.minutes || 12)) + ' 分钟</span>' +
+      '<span class="badge badge-muted">课件 + 自测</span>' +
       '<span class="badge badge-muted">' + esc(real.level || '') + '</span>' +
       (real.id ? '<span class="badge badge-muted mono">' + esc(real.id) + '</span>' : '') +
       '</span>' +
@@ -64,7 +64,7 @@
       '<div class="module-meta">' +
       '<span class="badge badge-brand">' + esc('阶段 ' + LQ.site.stageNumber(realMod) + ' / ' + LQ.site.stats().moduleCount) + '</span>' +
       '<span class="badge badge-muted">' + esc(realMod.level || '') + '</span>' +
-      '<span class="badge badge-muted">' + esc(lessons.length + ' 课 · ' + LQ.site.formatMinutes(realMod.minutes)) + '</span>' +
+      '<span class="badge badge-muted">' + esc(lessons.length + ' 课 · 自主进度') + '</span>' +
       '<span class="badge badge-info">' + esc('已完成 ' + progress.done + '/' + progress.total) + '</span>' +
       '</div>' +
       '</div>' +

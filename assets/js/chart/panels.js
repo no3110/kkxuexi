@@ -58,7 +58,7 @@
     return {
       volume: raw.volume !== false,
       delta: !!raw.delta,
-      cvd: !!raw.cvd || !!raw.delta,
+      cvd: raw.cvd === undefined ? !!raw.delta : !!raw.cvd,
       footprint: !!raw.footprint,
       profile: !!raw.profile,
       ladder: !!raw.ladder,
@@ -71,8 +71,18 @@
   /* 一次算好、逐帧复用的序列 */
   function buildSeries(scenario, panels) {
     var bars = scenario.bars;
+    var cvd = new Array(bars.length), cvdBars = new Array(bars.length), total = 0, day = null;
+    bars.forEach(function (bar, index) {
+      if (scenario.cvdResetDaily && bar.day !== day) { total = 0; day = bar.day; }
+      var open = total, high = total, low = total, deltaPath = Array.isArray(bar.deltaPath) && bar.deltaPath.length ? bar.deltaPath : [I.deltaOf(bar)];
+      deltaPath.forEach(function (delta) { total += delta; high = Math.max(high, total); low = Math.min(low, total); });
+      var delta = I.deltaOf(bar), close = total;
+      cvd[index] = close;
+      cvdBars[index] = { o: open, h: high, l: low, c: close, delta: delta };
+    });
     return {
-      cvd: I.cvd(bars),
+      cvd: cvd,
+      cvdBars: cvdBars,
       ma: panels.ma.map(function (period, idx) {
         return { period: period, values: I.ma(bars, period), color: P.ma[idx % P.ma.length] };
       }),
@@ -111,6 +121,50 @@
     }
     return H.clamp(Math.round(eng.view.to), 0, eng.bars.length - 1);
   }
+  function replayIndex(eng) {
+    if (!eng.replayPreview) return -1;
+    return Number.isInteger(eng.replayPreview.barIndex) ? eng.replayPreview.barIndex : Math.round(eng.view.to + 1);
+  }
+  function replayVisible(eng) {
+    var index = replayIndex(eng);
+    return index >= 0 && index <= eng.bars.length && eng.view.to >= eng.bars.length - 2;
+  }
+  function replayCvd(eng) {
+    if (!replayVisible(eng)) return null;
+    var preview = eng.replayPreview, index = replayIndex(eng), previousIndex = index - 1;
+    var previousBar = previousIndex >= 0 ? eng.bars[previousIndex] : null;
+    var previous = previousIndex >= 0 ? eng.series.cvdBars[previousIndex] : null;
+    var day = preview.day === undefined ? (eng.bars[index] || previousBar || {}).day : preview.day;
+    var open = previousBar && previousBar.day === day && previous ? previous.c : 0;
+    var high = open, low = open, close = open;
+    var path = Array.isArray(preview.deltaPath) && preview.deltaPath.length ? preview.deltaPath : [preview.delta || 0];
+    path.forEach(function (delta) { close += delta; high = Math.max(high, close); low = Math.min(low, close); });
+    return { index: index, o: open, h: high, l: low, c: close, delta: preview.delta || 0 };
+  }
+  function replayAtr(eng) {
+    if (!replayVisible(eng) || !eng.series.atr) return null;
+    var preview = eng.replayPreview, index = replayIndex(eng), period = eng.series.atr.period;
+    var values = eng.series.atr.values;
+    if (index < period - 1) return null;
+    var previousClose = index > 0 ? eng.bars[index - 1].c : preview.o;
+    var tr = Math.max(preview.h - preview.l, Math.abs(preview.h - previousClose), Math.abs(preview.l - previousClose));
+    var value;
+    if (index >= period) {
+      var prior = values[index - 1];
+      if (!isFinite(prior)) return null;
+      value = (prior * (period - 1) + tr) / period;
+    } else {
+      var total = tr;
+      for (var i = 1; i < index; i++) {
+        var bar = eng.bars[i], prevClose = eng.bars[i - 1].c;
+        total += Math.max(bar.h - bar.l, Math.abs(bar.h - prevClose), Math.abs(bar.l - prevClose));
+      }
+      var first = eng.bars[0];
+      total += Math.max(first.h - first.l, Math.abs(first.h - first.o), Math.abs(first.l - first.o));
+      value = total / period;
+    }
+    return isFinite(value) ? { index: index, value: value } : null;
+  }
 
   function paneLabel(ctx, rect, text, valueText, valueColor) {
     H.setFont(ctx, C.sizes.paneLabel, '500');
@@ -130,14 +184,28 @@
     return { top: rect.y + 15, bottom: rect.bottom - 3 };
   }
 
+  function columnValue(ctx, eng, rect, x, y, value, hovered) {
+    if (!hovered && eng.barW < 6) return;
+    var narrow = eng.barW < 22, fontSize = narrow ? 7 : H.clamp(eng.barW * 0.42, 8, 10), text = H.fmtCompact(value);
+    if (!narrow && !hovered && text.length * fontSize * 0.62 > eng.barW - 2) return;
+    ctx.save(); ctx.font = '500 ' + fontSize + 'px ' + C.fonts.mono; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#d6e1eb';
+    var labelY = H.clamp(y, rect.y + 23, rect.bottom - 7);
+    if (narrow) { ctx.translate(x, labelY); ctx.rotate(-Math.PI / 2); haloText(ctx, text, 0, 0); }
+    else haloText(ctx, text, x, labelY);
+    ctx.restore();
+  }
+
   /* ------------------------------------------------------------------ */
   /* 成交量                                                              */
   /* ------------------------------------------------------------------ */
   function drawVolume(ctx, eng, rect) {
-    var bars = eng.bars, r = strictRange(eng);
+    var bars = eng.bars, r = strictRange(eng), live = replayVisible(eng), preview = live ? eng.replayPreview : null;
+    var previewIndex = live ? replayIndex(eng) : -1;
     if (r.to < r.from) return;
     var maxV = 0, i;
-    for (i = r.from; i <= r.to; i++) maxV = Math.max(maxV, bars[i].v);
+    for (i = r.from; i <= r.to; i++) if (i !== previewIndex) maxV = Math.max(maxV, bars[i].v);
+    if (live) maxV = Math.max(maxV, preview.v || 0);
     if (!(maxV > 0)) return;
     var inner = paneInner(rect);
     var scale = (inner.bottom - inner.top) / maxV;
@@ -145,12 +213,20 @@
     var w = H.clamp(bw * 0.62, 1, 22);
     var lastIdx = hoverIndex(eng);
     for (i = r.from; i <= r.to; i++) {
+      if (i === previewIndex) continue;
       var b = bars[i];
       var x = eng.xOfBar(i) - w / 2;
       var h = Math.max(1, b.v * scale);
       ctx.fillStyle = b.c >= b.o ? P.volumeUp : P.volumeDown;
       if (i === lastIdx) ctx.fillStyle = b.c >= b.o ? P.bull : P.bear;
       ctx.fillRect(x, inner.bottom - h, w, h);
+      columnValue(ctx, eng, rect, eng.xOfBar(i), inner.bottom - h - 6, b.v, i === lastIdx);
+    }
+    if (live) {
+      var previewX = eng.xOfBar(previewIndex), previewHeight = Math.max(1, (preview.v || 0) * scale);
+      ctx.fillStyle = preview.c >= preview.o ? P.volumeUp : P.volumeDown;
+      ctx.fillRect(previewX - w / 2, inner.bottom - previewHeight, w, previewHeight);
+      columnValue(ctx, eng, rect, previewX, inner.bottom - previewHeight - 6, preview.v || 0, true);
     }
     ctx.strokeStyle = P.axisLine;
     ctx.lineWidth = 1;
@@ -158,18 +234,20 @@
     ctx.moveTo(rect.x, Math.round(inner.bottom) + 0.5);
     ctx.lineTo(rect.right, Math.round(inner.bottom) + 0.5);
     ctx.stroke();
-    var b0 = bars[lastIdx];
-    paneLabel(ctx, rect, PANE_LABELS.volume, H.fmtCompact(b0.v) + ' · ' + H.timeLabel(b0.t, 0, 'auto'), b0.c >= b0.o ? P.bullText : P.bearText);
+    var b0 = live ? preview : bars[lastIdx];
+    paneLabel(ctx, rect, PANE_LABELS.volume, H.fmtCompact(b0.v) + ' · ' + (eng.formatTime ? eng.formatTime(b0.t) : H.timeLabel(b0.t, 0, 'auto')), b0.c >= b0.o ? P.bullText : P.bearText);
   }
 
   /* ------------------------------------------------------------------ */
   /* Delta 柱状                                                          */
   /* ------------------------------------------------------------------ */
   function drawDelta(ctx, eng, rect) {
-    var bars = eng.bars, r = strictRange(eng);
+    var bars = eng.bars, r = strictRange(eng), live = replayVisible(eng), preview = live ? eng.replayPreview : null;
+    var previewIndex = live ? replayIndex(eng) : -1;
     if (r.to < r.from) return;
     var maxAbs = 0, i;
-    for (i = r.from; i <= r.to; i++) maxAbs = Math.max(maxAbs, Math.abs(I.deltaOf(bars[i])));
+    for (i = r.from; i <= r.to; i++) if (i !== previewIndex) maxAbs = Math.max(maxAbs, Math.abs(I.deltaOf(bars[i])));
+    if (live) maxAbs = Math.max(maxAbs, Math.abs(preview.delta || 0));
     if (!(maxAbs > 0)) return;
     var inner = paneInner(rect);
     var mid = (inner.top + inner.bottom) / 2;
@@ -179,6 +257,7 @@
     var w = H.clamp(bw * 0.55, 1, 20);
     var lastIdx = hoverIndex(eng);
     for (i = r.from; i <= r.to; i++) {
+      if (i === previewIndex) continue;
       var d = I.deltaOf(bars[i]);
       var h = Math.max(1, Math.abs(d) * scale);
       var x = eng.xOfBar(i) - w / 2;
@@ -186,6 +265,14 @@
       if (i !== lastIdx) ctx.globalAlpha = 0.72;
       ctx.fillRect(x, d >= 0 ? mid - h : mid, w, h);
       ctx.globalAlpha = 1;
+      columnValue(ctx, eng, rect, eng.xOfBar(i), d >= 0 ? mid - h - 6 : mid + h + 6, d, i === lastIdx);
+    }
+    if (live) {
+      var previewDelta = preview.delta || 0, previewX = eng.xOfBar(previewIndex);
+      var previewHeight = Math.max(1, Math.abs(previewDelta) * scale);
+      ctx.fillStyle = previewDelta >= 0 ? P.deltaPos : P.deltaNeg;
+      ctx.fillRect(previewX - w / 2, previewDelta >= 0 ? mid - previewHeight : mid, w, previewHeight);
+      columnValue(ctx, eng, rect, previewX, previewDelta >= 0 ? mid - previewHeight - 6 : mid + previewHeight + 6, previewDelta, true);
     }
     ctx.strokeStyle = P.axisLine;
     ctx.lineWidth = 1;
@@ -193,21 +280,25 @@
     ctx.moveTo(rect.x, Math.round(mid) + 0.5);
     ctx.lineTo(rect.right, Math.round(mid) + 0.5);
     ctx.stroke();
-    var dv = I.deltaOf(bars[lastIdx]);
+    var dv = live ? preview.delta || 0 : I.deltaOf(bars[lastIdx]);
     paneLabel(ctx, rect, PANE_LABELS.delta, (dv >= 0 ? '+' : '') + H.fmtCompact(dv), dv >= 0 ? P.bullText : P.bearText);
   }
 
   /* ------------------------------------------------------------------ */
   /* 折线类面板（CVD / ATR 共用一个实现）                                 */
   /* ------------------------------------------------------------------ */
-  function drawLinePane(ctx, eng, rect, values, color, label, valueFmt, valueSuffix) {
+  function drawLinePane(ctx, eng, rect, values, color, label, valueFmt, valueSuffix, override) {
     var r = viewRange(eng);
+    var liveOverride = override && override.index >= r.from && override.index <= r.to + 1 ? override : null;
     var min = Infinity, max = -Infinity, i, v;
     for (i = r.from; i <= r.to; i++) {
-      v = values[i];
+      v = liveOverride && i === liveOverride.index ? liveOverride.value : values[i];
       if (v === null || v === undefined || !isFinite(v)) continue;
       if (v < min) min = v;
       if (v > max) max = v;
+    }
+    if (liveOverride && liveOverride.index > r.to && isFinite(liveOverride.value)) {
+      min = Math.min(min, liveOverride.value); max = Math.max(max, liveOverride.value);
     }
     if (!isFinite(min) || !isFinite(max)) return;
     var span = max - min;
@@ -218,9 +309,12 @@
     function yOf(val) { return bot - (val - min) / (max - min) * (bot - top); }
     var pts = [];
     for (i = r.from; i <= r.to; i++) {
-      v = values[i];
+      v = liveOverride && i === liveOverride.index ? liveOverride.value : values[i];
       if (v === null || v === undefined || !isFinite(v)) continue;
       pts.push({ x: eng.xOfBar(i), y: yOf(v), v: v });
+    }
+    if (liveOverride && liveOverride.index > r.to && isFinite(liveOverride.value)) {
+      pts.push({ x: eng.xOfBar(liveOverride.index), y: yOf(liveOverride.value), v: liveOverride.value });
     }
     if (pts.length < 2) return;
     // 面积填充
@@ -262,9 +356,52 @@
     ctx.fillStyle = color;
     ctx.fill();
     var idx = hoverIndex(eng);
-    var cur = values[idx];
+    var cur = liveOverride && liveOverride.index === idx ? liveOverride.value : values[idx];
+    if (liveOverride && liveOverride.index > idx) cur = liveOverride.value;
     if (cur === undefined) cur = lastPt.v;
     paneLabel(ctx, rect, label, (valueSuffix || '') + valueFmt(cur), color);
+  }
+
+  function drawCvdBars(ctx, eng, rect) {
+    var values = eng.series.cvdBars, r = strictRange(eng), live = replayVisible(eng), preview = live ? replayCvd(eng) : null;
+    var previewIndex = live ? replayIndex(eng) : -1, min = Infinity, max = -Infinity, i;
+    for (i = r.from; i <= r.to; i++) {
+      if (i === previewIndex) continue;
+      var item = values[i]; if (!item) continue;
+      min = Math.min(min, item.l, item.o, item.c); max = Math.max(max, item.h, item.o, item.c);
+    }
+    if (preview) { min = Math.min(min, preview.l, preview.o, preview.c); max = Math.max(max, preview.h, preview.o, preview.c); }
+    if (!isFinite(min) || !isFinite(max)) return;
+    var pad = Math.max((max - min) * 0.12, eng.scenario.tick || 1), inner = paneInner(rect);
+    min -= pad; max += pad;
+    function yOf(value) { return inner.bottom - (value - min) / Math.max(1e-9, max - min) * (inner.bottom - inner.top); }
+    var width = H.clamp(eng.barW * 0.62, 1, 18), bodyWidth = H.clamp(eng.barW * 0.48, 1, 14), last = hoverIndex(eng);
+    if (min < 0 && max > 0) {
+      var zeroY = yOf(0); ctx.strokeStyle = P.axisLine; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(rect.x, Math.round(zeroY) + 0.5); ctx.lineTo(rect.right, Math.round(zeroY) + 0.5); ctx.stroke();
+    }
+    for (i = r.from; i <= r.to; i++) {
+      if (i === previewIndex) continue;
+      var candle = values[i]; if (!candle) continue;
+      var up = candle.c >= candle.o, x = eng.xOfBar(i), yO = yOf(candle.o), yC = yOf(candle.c);
+      var color = up ? P.deltaPos : P.deltaNeg;
+      ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = Math.max(1, Math.min(2, eng.barW * 0.08));
+      ctx.globalAlpha = i === last ? 1 : 0.76;
+      ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, yOf(candle.h)); ctx.lineTo(Math.round(x) + 0.5, yOf(candle.l)); ctx.stroke();
+      ctx.fillRect(x - bodyWidth / 2, Math.min(yO, yC), bodyWidth, Math.max(1, Math.abs(yC - yO)));
+      ctx.globalAlpha = 1;
+      columnValue(ctx, eng, rect, x, (yO + yC) / 2, candle.delta, i === last);
+    }
+    if (preview) {
+      var cvdOpen = preview.o, cvdClose = preview.c, previewX = eng.xOfBar(previewIndex), previewUp = cvdClose >= cvdOpen;
+      ctx.strokeStyle = previewUp ? P.deltaPos : P.deltaNeg; ctx.fillStyle = ctx.strokeStyle; ctx.globalAlpha = 0.82;
+      ctx.beginPath(); ctx.moveTo(Math.round(previewX) + 0.5, yOf(preview.h)); ctx.lineTo(Math.round(previewX) + 0.5, yOf(preview.l)); ctx.stroke();
+      ctx.fillRect(previewX - bodyWidth / 2, Math.min(yOf(cvdOpen), yOf(cvdClose)), bodyWidth, Math.max(1, Math.abs(yOf(cvdOpen) - yOf(cvdClose))));
+      columnValue(ctx, eng, rect, previewX, (yOf(cvdOpen) + yOf(cvdClose)) / 2, preview.delta, true);
+      ctx.globalAlpha = 1;
+    }
+    var current = preview ? preview.c : (eng.series.cvd[last] || 0);
+    paneLabel(ctx, rect, PANE_LABELS.cvd + ' · 颜色=本柱Delta', (current >= 0 ? '+' : '') + H.fmtCompact(current), current >= 0 ? P.bullText : P.bearText);
   }
 
   /* ------------------------------------------------------------------ */
@@ -552,12 +689,12 @@
     if (wideBottom) {
       info = '中间价 ' + H.fmtFixed(data.close, data.priceDecimals) +
         ' · 点差 ' + H.fmtFixed(data.spread, Math.max(1, data.decimals)) +
-        ' · bar #' + data.barIndex + ' ' + H.timeLabel(data.time, 0, 'auto');
+        ' · bar #' + data.barIndex + ' ' + (eng.formatTime ? eng.formatTime(data.time) : H.timeLabel(data.time, 0, 'auto'));
     } else if (side) {
       info = '点差 ' + H.fmtFixed(data.spread, Math.max(1, data.decimals));
     } else {
       info = '点差 ' + H.fmtFixed(data.spread, Math.max(1, data.decimals)) +
-        ' · #' + data.barIndex + ' ' + H.timeLabel(data.time, 0, 'auto');
+        ' · #' + data.barIndex + ' ' + (eng.formatTime ? eng.formatTime(data.time) : H.timeLabel(data.time, 0, 'auto'));
     }
     ctx.fillText(info, rect.right - 7, rect.y + 10);
     if (wideBottom) {
@@ -679,12 +816,12 @@
       if (item.key === 'volume') drawVolume(ctx, eng, rect);
       else if (item.key === 'delta') drawDelta(ctx, eng, rect);
       else if (item.key === 'cvd') {
-        drawLinePane(ctx, eng, rect, eng.series.cvd, P.cvd, PANE_LABELS.cvd, function (v) { return H.fmtCompact(v); });
+        drawCvdBars(ctx, eng, rect);
       } else if (item.key === 'atr') {
         if (eng.series.atr) {
           drawLinePane(ctx, eng, rect, eng.series.atr.values, P.atr,
             'ATR(' + eng.series.atr.period + ')',
-            function (v) { return H.fmtFixed(v, 2); });
+            function (v) { return H.fmtFixed(v, 2); }, '', replayAtr(eng));
         }
       }
       ctx.restore();

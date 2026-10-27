@@ -292,6 +292,7 @@
 
   I.deltaOf = function (bar) {
     if (!bar) return 0;
+    if (isNum(bar.delta)) return bar.delta;
     if (isNum(bar.d)) return bar.d;
     var range = Math.max(1e-9, bar.h - bar.l);
     return (num(bar.v, 0)) * (((bar.c - bar.l) / range) * 2 - 1);
@@ -349,6 +350,10 @@
     for (i = start; i <= end; i++) {
       var b = bars[i];
       if (!b) continue;
+      if (typeof b.getFootprint === 'function') {
+        b.getFootprint().bins.forEach(function (row) { var index = clamp(Math.floor((row[0] - lo) / step), 0, binCount - 1); vols[index] += row[1] + row[2]; });
+        continue;
+      }
       var bl = Math.max(b.l, lo), bh = Math.min(b.h, hi);
       if (!(bh > bl)) {
         var tp = clamp((b.h + b.l + b.c) / 3, lo, hi);
@@ -401,6 +406,7 @@
    * 标注了“买墙/卖墙/大额挂单”的 hline 会被吸附到最近的档位并放大成挂单墙，
    * 保证“图上标注”和“订单簿面板”讲的是同一个价位。 */
   I.ladder = function (scenario, barIndex, opts) {
+    if (scenario && typeof scenario.book === 'function') return scenario.book(barIndex, opts || {});
     opts = opts || {};
     var bars = (scenario && scenario.bars) || [];
     if (!bars.length) return null;
@@ -537,6 +543,10 @@
       if (!b) continue;
       var v = num(b.v, 0);
       if (!(v > 0)) continue;
+      if (typeof b.getFootprint === 'function') {
+        b.getFootprint().bins.forEach(function (row) { var index = clamp(Math.floor((row[0] - lo) / step), 0, binCount - 1); vols[index] += row[1] + row[2]; });
+        continue;
+      }
       var bl = Math.max(num(b.l, lo), lo), bh = Math.min(num(b.h, hi), hi);
       var barSpan = bh - bl;
       if (!(barSpan > 0)) {

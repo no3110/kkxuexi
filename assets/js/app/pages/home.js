@@ -32,10 +32,10 @@
       var modId = isFoundation ? 'm00' : mod.id;
       var title = isFoundation ? mod.title : mod.title;
       var sub = isFoundation
-        ? ('阶段 0 · ' + mod.items.length + ' 项自查 · 约 ' + LQ.site.formatMinutes(mod.minutes))
-        : ('阶段 ' + stage.num + ' · ' + LQ.site.moduleLessons(mod.id).length + ' 课 · 约 ' + LQ.site.formatMinutes(mod.minutes));
+        ? ('阶段 0 · 6节通俗讲解 + 理解自测')
+        : ('阶段 ' + stage.num + ' · ' + LQ.site.moduleLessons(mod.id).length + ' 课 · 课件 + 自测');
       var state = stageState(stage.kind, mod);
-      var href = isFoundation ? '#/roadmap' : '#/module/' + encodeURIComponent(mod.id);
+      var href = isFoundation ? '#/module/m00' : '#/module/' + encodeURIComponent(mod.id);
       rows += '<a class="overview-item ' + LQ.ui.moduleClass(modId) + '" href="' + esc(href) + '">' +
         '<span class="overview-num">' + (isFoundation ? '0' : esc(String(stage.num))) + '</span>' +
         '<span class="overview-main">' +
@@ -54,7 +54,7 @@
     var daily = LQ.site.dailySummary();
     var last = LQ.site.lastLesson();
     var lastLesson = last ? LQ.site.lesson(last) : null;
-    var resetBlock = '<button type="button" class="btn btn-ghost btn-sm" data-action="reset-progress">' + LQ.ui.icon('reset') + '重置学习进度</button>';
+    var resetBlock = '<button type="button" class="btn btn-ghost btn-sm" data-action="reset-progress" title="清除课程完成、自测成绩、计划勾选和上次学习位置">' + LQ.ui.icon('reset') + '清除学习记录</button>';
     return '<section class="panel" data-home-progress>' +
       '<div class="panel-title">' + LQ.ui.icon('chart') + '学习进度</div>' +
       '<div class="progress-card-head">' +
@@ -64,8 +64,8 @@
       '</div>' +
       LQ.ui.barHTML(sum.pct) +
       '<div class="mini-stats">' +
-      '<div class="mini-stat"><span>计划任务</span><b>' + plan.done + ' / ' + plan.total + '</b></div>' +
-      '<div class="mini-stat"><span>今日训练</span><b>' + daily.done + ' / ' + daily.total + '</b></div>' +
+      '<div class="mini-stat"><span>已读懂课程</span><b>' + sum.done + ' / ' + sum.total + '</b></div>' +
+      '<div class="mini-stat"><span>地基掌握</span><b>' + LQ.site.moduleProgress('m00').done + ' / 6</b></div>' +
       '<div class="mini-stat"><span>上次学习</span><b>' + esc(lastLesson ? lastLesson.id : '—') + '</b></div>' +
       '</div>' +
       '<div class="flex gap-8 mt-16 flex-wrap">' +
@@ -92,21 +92,21 @@
     return '<section class="home-hero">' +
       '<div class="hero-badges">' +
       LQ.ui.badge('离线可用 · 零依赖', 'bull', 'lock') +
-      LQ.ui.badge(stats.lessonCount + ' 课 · ' + stats.moduleCount + ' 大模块 + 地基', 'brand', 'book') +
-      LQ.ui.badge(planWeeks + ' 周学习计划', 'info', 'calendar') +
+      LQ.ui.badge(stats.lessonCount + ' 课 · 含6节地基讲解', 'brand', 'book') +
+      LQ.ui.badge('分镜课件 · 自主进度', 'info', 'calendar') +
       LQ.ui.badge('模拟图 + 真实 NQ/GC 案例', 'warn', 'chart') +
       '</div>' +
       '<h1 class="hero-title">从 0 到实战，把<span class="hl">订单流与价格行为</span>学成一个系统</h1>' +
-      '<p class="hero-lead">' + esc('不是零散的名词堆砌：' + planWeeks + ' 周时间，从市场语言与道氏理论起步，经价格行为、ICT/SMC、订单流、拍卖理论、威科夫，收敛成一套带风控的交易 SOP，最后在真实 NQ/GC 行情上实战考核。每节课配可交互 K 线、分步标注讲解与自测题。') + '</p>' +
+      '<p class="hero-lead">' + esc('从一根K线的四个价格开始，用通俗讲解与分镜课件，逐步读懂趋势、价格行为和订单流。每课配理解自测，按自己的节奏学习；再进入MNQ / MGC模拟市场，用30个交易日验证你的判断与执行。') + '</p>' +
       '<div class="hero-actions">' +
       '<a class="btn btn-primary btn-lg" href="' + esc(primaryHref) + '">' + LQ.ui.icon('play') + esc(primaryLabel) + '</a>' +
       '<a class="btn btn-outline btn-lg" href="#/roadmap">' + LQ.ui.icon('route') + '查看学习路线</a>' +
-      '<a class="btn btn-ghost" href="#/exam">' + LQ.ui.icon('target') + '实战考核</a>' +
+      '<a class="btn btn-ghost" href="#/simulation">' + LQ.ui.icon('target') + '30日模拟实战</a>' +
       '</div>' +
       '<div class="hero-stats">' +
-      '<div class="hero-stat"><b>' + stats.lessonCount + '<span class="unit">课</span></b><span>' + esc(stats.moduleCount + ' 大模块 + 地基自查') + '</span></div>' +
-      '<div class="hero-stat"><b>' + stats.hours + '<span class="unit">小时</span></b><span>课程总时长（不含练习）</span></div>' +
-      '<div class="hero-stat"><b>' + planWeeks + '<span class="unit">周</span></b><span>推荐学习节奏</span></div>' +
+      '<div class="hero-stat"><b>' + stats.lessonCount + '<span class="unit">课</span></b><span>地基 → 系统知识 → 实战</span></div>' +
+      '<div class="hero-stat"><b>课件<span class="unit">+ 自测</span></b><span>可翻页 · 可听讲 · 可练习</span></div>' +
+      '<div class="hero-stat"><b>30<span class="unit">交易日</span></b><span>MNQ / MGC 模拟考核</span></div>' +
       '<div class="hero-stat"><b>' + sum.done + '<span class="unit">/' + sum.total + '</span></b><span>当前已完成课程</span></div>' +
       '</div>' +
       '</section>';
@@ -125,7 +125,7 @@
       '<div class="continue-main">' +
       '<div class="continue-label">' + esc(isResume ? '继续上次学习' : (LQ.site.summary().done > 0 ? '继续学习' : '建议从这里开始')) + '</div>' +
       '<div class="continue-title">' + esc(target.title) + '</div>' +
-      '<div class="continue-sub">' + esc((mod ? mod.title : '') + ' · ' + (target.id || '') + ' · 约 ' + LQ.site.formatMinutes(target.minutes || 15) + (progress.total ? ' · 本模块已完成 ' + progress.done + '/' + progress.total : '')) + '</div>' +
+      '<div class="continue-sub">' + esc((mod ? mod.title : '') + ' · ' + (target.id || '') + ' · 分镜课件 + 理解自测' + (progress.total ? ' · 本模块已完成 ' + progress.done + '/' + progress.total : '')) + '</div>' +
       '</div>' +
       '<a class="btn btn-primary" href="#/lesson/' + encodeURIComponent(target.id) + '">' + LQ.ui.icon('arrow-right') + esc(isResume ? '继续' : '开始') + '</a>' +
       '</div>';
@@ -161,9 +161,9 @@
     return '<section class="panel">' +
       '<div class="panel-title">' + LQ.ui.icon('target') + '检验一下学得怎么样</div>' +
       '<div class="home-practice">' +
-      '<a class="home-practice-card" href="#/exam">' +
+      '<a class="home-practice-card" href="#/simulation">' +
       '<span class="home-practice-icon">' + LQ.ui.icon('target') + '</span>' +
-      '<span class="home-practice-main"><b>实战考核</b><span>' + esc('综合测验（18 题 / 15 分钟）+ 图表判读（' + (chartQuestions || '待加载') + ' 题）+ 成绩与错题') + '</span></span>' +
+      '<span class="home-practice-main"><b>30日模拟实战</b><span>MNQ / MGC · 5万美元账户 · 标注下单 · AI逐笔复盘</span></span>' +
       LQ.ui.icon('chevron-right') +
       '</a>' +
       '<a class="home-practice-card" href="#/real">' +
@@ -208,7 +208,7 @@
         LQ.ui.confirmThen(resetBtn, function () {
           try {
             LQ.store.progress.reset();
-            LQ.ui.toast('已重置学习进度（课程完成、自测与计划勾选）');
+            LQ.ui.toast('已清除学习记录（课程完成、自测与计划勾选）');
           } catch (err) {
             LQ.ui.toast('重置失败：' + (err && err.message ? err.message : err), 'bad');
           }

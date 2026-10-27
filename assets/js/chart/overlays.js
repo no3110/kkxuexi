@@ -865,6 +865,19 @@
     var panelTop = H.clamp(yOf(vp.hi), plot.y + 1, plot.bottom - 1);
     var panelBot = H.clamp(yOf(vp.lo), plot.y + 1, plot.bottom - 1);
     if (panelBot - panelTop < 6 || geom.barMax < 12) return;
+    if (a.showVA) {
+      var vaTop = H.clamp(yOf(vp.vah), plot.y + 1, plot.bottom - 1);
+      var vaBottom = H.clamp(yOf(vp.val), plot.y + 1, plot.bottom - 1);
+      var areaX1 = H.clamp(Math.min(x1, x2), plot.x, plot.right), areaX2 = H.clamp(Math.max(x1, x2), plot.x, plot.right);
+      if (areaX2 - areaX1 > 2 && vaBottom - vaTop > 2) {
+        ctx.save(); clipPlot(ctx, plot);
+        ctx.globalAlpha = 0.1; ctx.fillStyle = t.strong;
+        ctx.fillRect(areaX1, vaTop, areaX2 - areaX1, vaBottom - vaTop);
+        ctx.globalAlpha = 0.36; ctx.strokeStyle = t.strong; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+        [vaTop, vaBottom].forEach(function (y) { ctx.beginPath(); ctx.moveTo(areaX1, Math.round(y) + 0.5); ctx.lineTo(areaX2, Math.round(y) + 0.5); ctx.stroke(); });
+        ctx.setLineDash([]); ctx.restore(); ctx.globalAlpha = 1;
+      }
+    }
     ctx.save();
     clipPlot(ctx, plot);
     ctx.fillStyle = 'rgba(8,12,18,0.66)';

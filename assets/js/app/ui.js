@@ -176,7 +176,8 @@
     { href: '#/', route: '/', label: '首页', icon: 'home' },
     { href: '#/roadmap', route: '/roadmap', label: '路线图', icon: 'route' },
     { href: '#/plan', route: '/plan', label: '学习计划', icon: 'calendar' },
-    { href: '#/exam', route: '/exam', label: '实战考核', icon: 'target' },
+    { href: '#/simulation', route: '/simulation', label: '模拟实战', icon: 'chart' },
+    { href: '#/exam', route: '/exam', label: '知识测验', icon: 'target' },
     { href: '#/real', route: '/real', label: '真实案例', icon: 'chart' },
     { href: '#/tools', route: '/tools', label: '工具', icon: 'tools' },
     { href: '#/glossary', route: '/glossary', label: '术语表', icon: 'book' },
@@ -187,7 +188,7 @@
   var BOTTOM_NAV = [
     { href: '#/', route: '/', label: '首页', icon: 'home', key: 'home' },
     { href: '#/roadmap', route: '/roadmap', label: '路线图', icon: 'route', key: 'roadmap' },
-    { href: '#/exam', route: '/exam', label: '考核', icon: 'target', key: 'exam' },
+    { href: '#/simulation', route: '/simulation', label: '实战', icon: 'target', key: 'exam' },
     { href: '#/tools', route: '/tools', label: '工具', icon: 'tools', key: 'tools' },
     { href: '#/?focus=progress', route: '/', label: '进度', icon: 'chart', key: 'progress' }
   ];
@@ -349,14 +350,15 @@
         '</div>' +
         '<div>' +
         '<div class="footer-links">' +
-        '<a href="#/roadmap">学习路线图</a><a href="#/plan">' + esc(planWeeks + ' 周学习计划') + '</a><a href="#/exam">实战考核</a>' +
+        '<a href="#/roadmap">学习路线图</a><a href="#/plan">自主学习计划</a><a href="#/simulation">模拟实战</a><a href="#/exam">知识测验</a>' +
         '<a href="#/real">真实案例库</a><a href="#/tools">训练工具</a>' +
-        '<a href="#/glossary">术语表</a><a href="#/references">参考资料</a><a href="#/lesson/m01-01">从第一课开始</a>' +
+        '<a href="#/glossary">术语表</a><a href="#/references">参考资料</a><a href="#/lesson/m00-01">从地基第一课开始</a>' +
         '</div>' +
-        '<p class="footer-desc mt-16">' + esc('纯静态 · PWA 可安装 · 离线可用 · 零外部依赖') + '</p>' +
+        '<p class="footer-desc mt-16">' + esc('纯静态 · 离线可用 · 零外部依赖') + '</p>' +
         '</div>' +
         '</div>' +
-        '<div class="footer-bottom"><span>' + icon('lock') + esc('本地进度与成绩保存在你的浏览器中，不上传任何数据') + '</span><span>' + esc('双击 index.html 即可离线学习 · 手机可添加到主屏幕') + '</span></div>';
+        '<div class="footer-bottom"><span>' + icon('lock') + esc('学习进度与考核保存在本机；使用AI时发送对应训练记录') + '</span><span>' + esc('已缓存课程可离线阅读 · 进度保存在此浏览器') + '</span></div>';
+      if (LQ.ai) LQ.ai.mountSettings(footer);
     }
 
     buildDrawer();

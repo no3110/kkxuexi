@@ -4,7 +4,7 @@
 
   var LQ = global.LQ || {};
   global.LQ = LQ;
-  LQ.version = '1.0.0';
+  LQ.version = '3.2.0';
 
   var ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 

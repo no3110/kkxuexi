@@ -1,6 +1,6 @@
 /* 实战考核页 #/exam（site-engineer 维护 · V2）
  * 三个 TAB：
- *   quiz    综合测验：9 个模块各随机抽 2 题（共 18 题），15 分钟计时，交卷判分 + 逐题解析
+ *   quiz    综合测验：10 个模块各随机抽 2 题（共 20 题），15 分钟计时，交卷判分 + 逐题解析
  *   chart   图表判读：content/exam-bank.js 的 chart 题，先隐藏标注，作答后显示解析并 setAnnotations
  *   history 成绩与错题：本地 examHistory（最多 20 条）、模块正确率、错题重做、推荐复习课程
  *
@@ -159,7 +159,7 @@
     };
   }
 
-  /* 综合测验：9 个模块各抽 2 题 */
+  /* 综合测验：当前每个模块各抽 2 题 */
   function buildComprehensiveQuestions() {
     var picked = [];
     var missing = [];
@@ -325,7 +325,7 @@
     if (!total) {
       return '<div class="exam-panel-intro">' +
         LQ.ui.noticeHTML('综合测验需要课程 quiz 数据。当前课程内容尚未加载完成，题库为空；内容就绪后刷新页面即可开始。', 'warn', 'warn') +
-        emptyState('题库尚未加载', '综合测验从 9 个模块的课程自测题中随机抽题。请确认 content 脚本已加载。') +
+        emptyState('题库尚未加载', '综合测验按当前各模块的课程自测题随机抽题。请确认 content 脚本已加载。') +
         '</div>';
     }
     return '<div class="exam-panel-intro">' +
@@ -1072,14 +1072,14 @@
         }).join('') +
         '<div class="exam-actions">' +
         (latestWrong.wrong.some(function (w) { return !w.chart; }) ? '<button type="button" class="btn btn-primary" data-exam-redo-wrong>' + LQ.ui.icon('reset') + '错题重做</button>' : '') +
-        '<button type="button" class="btn btn-ghost" data-exam-clear>' + LQ.ui.icon('close') + '清空成绩</button>' +
+        '<button type="button" class="btn btn-ghost" data-exam-clear>' + LQ.ui.icon('close') + '清除测验记录</button>' +
         '</div>' +
         (chartWrong ? '<p class="text-xs dim mt-8">' + esc('图表题错题请用上方「去图表判读重练」按钮回到原题重做。') + '</p>' : '') +
         '</div>';
     } else {
       wrongHTML = '<div class="panel"><div class="panel-title">' + LQ.ui.icon('check-circle') + '全部答对或暂无错题</div>' +
         '<p class="text-sm muted mb-0">' + esc('继续保持。可以点「再考一次」换一批随机题。') + '</p>' +
-        '<div class="exam-actions"><button type="button" class="btn btn-ghost" data-exam-clear>' + LQ.ui.icon('close') + '清空成绩</button></div></div>';
+        '<div class="exam-actions"><button type="button" class="btn btn-ghost" data-exam-clear>' + LQ.ui.icon('close') + '清除测验记录</button></div></div>';
     }
 
     return '<div class="exam-history-panel">' +
@@ -1107,8 +1107,14 @@
     if (clearBtn) clearBtn.addEventListener('click', function () {
       LQ.ui.confirmThen(clearBtn, function () {
         removeKey(HISTORY_KEY);
+        removeKey(SESSION_KEY);
+        removeKey(CHART_KEY);
+        state.session = null;
+        state.chartSession = null;
+        state.result = null;
+        state.index = 0;
         renderPanel(page, state);
-        LQ.ui.toast('已清空考核成绩');
+        LQ.ui.toast('已清除测验成绩、错题及未完成答题记录');
       });
     });
     var redoBtn = page.querySelector('[data-exam-redo-wrong]');
@@ -1184,7 +1190,7 @@
   }
 
   LQ.pages.exam = {
-    title: '实战考核',
+    title: '知识测验与图表判读',
     render: function (ctx) {
       var page = document.createElement('div');
       page.className = 'page exam-page';
@@ -1208,6 +1214,7 @@
         '<h1 class="page-title">' + esc('把「看过」变成「会做」') + '</h1>' +
         '<p class="page-lead">' + esc('综合测验从 ' + LQ.site.stats().moduleCount + ' 个模块的课程自测随机抽题（每模块 2 题、15 分钟）；图表判读用真实/模拟情景隐藏标注考判断；成绩与错题都会保存在本地。') + '</p>' +
         '</div>' +
+        '<a class="sim-assessment-link" href="#/simulation"><span><b>新增 · 30日模拟实战考核</b><small>MNQ / MGC · $50,000模拟账户 · 可画线下单 · AI逐笔复盘</small></span><span>进入交易台 →</span></a>' +
         tabBarHTML(initialTab) +
         '<div class="exam-body" data-exam-body></div>';
 

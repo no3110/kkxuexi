@@ -10,7 +10,7 @@
   'use strict';
   var LQ = global.LQ = global.LQ || {};
 
-  var MODULE_ORDER = ['m01', 'm02', 'm03', 'm04', 'm08', 'm05', 'm06', 'm07', 'm09'];
+  var MODULE_ORDER = ['m00', 'm01', 'm02', 'm03', 'm04', 'm08', 'm05', 'm06', 'm07', 'm09'];
 
   var MODULES = {
     m01: {
@@ -145,7 +145,7 @@
     title: '地基 · 市场语言', en: 'Foundations',
     eyebrow: '阶段 0 · 必过地基',
     tagline: '先把「市场是什么、K 线在说什么、支撑阻力怎么画、日志怎么记」弄明白。',
-    goal: '这一阶段没有新课，只有 6 项自查。全部打勾才进入模块 1——否则后面的道氏、PA、订单流都会变成背名词。建议 1 周内完成，每天 30 分钟。',
+    goal: '这一阶段有6节独立的通俗讲解、分镜课件与理解自测。先学成交机制和K线语言，再逐项自查；不设固定时长，读懂后进入趋势模块。',
     minutes: 180, icon: 'layers',
     items: [
       { id: 'fx-1', title: '市场机制', text: '搞懂市价/限价/止损单、点差、手续费、滑点与流动性时段；能解释「为什么成交价可能比看到的价格差」。', refs: ['m04-01'] },
@@ -155,7 +155,7 @@
       { id: 'fx-5', title: '工具与日志', text: '固定看盘模板，并建立交易日志模板：日期/品种/周期/理由/入场/止损/目标/结果/复盘。', refs: ['m07-03'] },
       { id: 'fx-6', title: '风险认知', text: '写下单笔最大风险（≤1%）、每日最大亏损（≤3%），以及「今天停止交易」的触发规则。', refs: ['m06-03', 'm06-04'] }
     ],
-    checkpoint: '在一张陌生品种的图上，5 分钟内说出：趋势方向、3 个关键位、最近一次结构变化，并写进日志。',
+    checkpoint: '能解释K线的四个价格、挂单与成交的区别，指出3个关键位，并完成六节课程的理解自测。',
     deliverable: '《交易基础设施清单》：主周期、看盘模板、日志模板、单笔与单日风险上限。'
   };
 
@@ -325,6 +325,7 @@
   var lessonMap = {};
   MODULE_ORDER.forEach(function (modId) {
     var mod = MODULES[modId];
+    if (!mod) return;
     mod.lessons.forEach(function (lesson, index) {
       lessonMap[lesson.id] = {
         id: lesson.id,
@@ -507,7 +508,7 @@
       var items = LQ.catalog.foundation.items;
       var done = 0;
       items.forEach(function (item) {
-        try { if (LQ.store.progress.isPlanTaskDone(item.id)) done++; } catch (err) { /* ignore */ }
+        try { if (LQ.store.progress.isPlanTaskDone(item.id) || LQ.store.progress.isDone('m00-0' + item.id.slice(-1))) done++; } catch (err) { /* ignore */ }
       });
       return { done: done, total: items.length, pct: items.length ? Math.round((done / items.length) * 100) : 0 };
     },
@@ -518,6 +519,7 @@
 
     stageNumber: function (mod) {
       if (!mod) return 0;
+      if (mod.id === 'm00') return 0;
       // V2：阶段编号以 order 为准（content 的 stage 数字字段可能滞后，stageName 仍是展示文案）
       return Number(mod.order) || Number(mod.stage) || 0;
     },
@@ -526,6 +528,7 @@
     stages: function () {
       var out = [{ kind: 'foundation', num: 0, data: LQ.catalog.foundation }];
       site.modules().forEach(function (mod) {
+        if (mod.id === 'm00') return;
         out.push({ kind: 'module', num: site.stageNumber(mod), data: mod });
       });
       return out;

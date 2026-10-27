@@ -91,6 +91,7 @@ window.__LQ_ERRORS__ = window.__LQ_ERRORS__ || [];
       ['/lesson/:id', 'lesson'],
       ['/exam', 'exam'],
       ['/exam/:tab', 'exam'],
+      ['/simulation', 'simulation'],
       ['/real', 'real'],
       ['/tools', 'tools'],
       ['/glossary', 'glossary'],

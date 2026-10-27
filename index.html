@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="离线学习网站：道氏理论、价格行为 PA、ICT/SMC、订单流、拍卖理论、威科夫、ATR 风控、综合实战与真实 NQ/GC 案例，配可交互 K 线、标注讲解与实战考核。">
+  <meta name="description" content="49课订单流学习：地基通俗讲解、分镜课件、自主学习计划，MNQ/MGC 30日模拟交易考核、知识点标注与AI逐笔复盘。">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#080b11">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,6 +15,7 @@
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="assets/css/main.css">
   <link rel="stylesheet" href="assets/css/pages.css">
+  <link rel="stylesheet" href="assets/css/lab.css">
   <script>
   /* 部署自检兜底：如果部署包不完整/路径多套了一层，页面会卡在“正在加载”；6 秒后显示具体原因与自检入口。 */
   (function () {
@@ -102,6 +103,7 @@
   <script src="assets/js/core/namespace.js"></script>
   <script src="assets/js/core/inline.js"></script>
   <script src="assets/js/core/store.js"></script>
+  <script src="assets/js/core/ai.js"></script>
   <!-- 数据层（Lead 维护） -->
   <script src="assets/js/data/generator.js"></script>
   <script src="assets/js/data/registry.js"></script>
@@ -118,24 +120,30 @@
   <script src="assets/js/content/m08-auction.js"></script>
   <script src="assets/js/content/m09-real-cases.js"></script>
   <script src="assets/js/content/exam-bank.js"></script>
+  <script src="assets/js/content/m00-foundation.js"></script>
   <!-- 图表引擎（chart-engineer 维护） -->
   <script src="assets/js/chart/indicators.js"></script>
   <script src="assets/js/chart/overlays.js"></script>
   <script src="assets/js/chart/panels.js"></script>
   <script src="assets/js/chart/engine.js"></script>
   <script src="assets/js/chart/chart.js"></script>
+  <script src="assets/js/chart/workbench.js"></script>
+  <script src="assets/js/sim/market.js"></script>
+  <script src="assets/js/sim/account.js"></script>
   <!-- 应用层（site-engineer 维护；app.js 必须最后） -->
   <script src="assets/js/app/errors.js"></script>
   <script src="assets/js/app/catalog.js"></script>
   <script src="assets/js/app/ui.js"></script>
   <script src="assets/js/app/router.js"></script>
   <script src="assets/js/app/search.js"></script>
+  <script src="assets/js/app/course-player.js"></script>
   <script src="assets/js/app/pages/home.js"></script>
   <script src="assets/js/app/pages/roadmap.js"></script>
   <script src="assets/js/app/pages/plan.js"></script>
   <script src="assets/js/app/pages/module.js"></script>
   <script src="assets/js/app/pages/lesson.js"></script>
   <script src="assets/js/app/pages/exam.js"></script>
+  <script src="assets/js/app/pages/simulation.js"></script>
   <script src="assets/js/app/pages/real.js"></script>
   <script src="assets/js/app/pages/tools.js"></script>
   <script src="assets/js/app/pages/glossary.js"></script>

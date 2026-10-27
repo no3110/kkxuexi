@@ -47,6 +47,8 @@
       },
       getScenario: function () { return null; },
       getDrawings: function () { return []; },
+      getSelection: function () { return null; },
+      removeSelectedDrawing: function () { return false; },
       setDrawings: noop,
       clearDrawings: noop,
       setToolsEnabled: noop,
@@ -115,6 +117,8 @@
       getScenario: function () { return engine.getScenario(); },
       /* ---- V2 ---- */
       getDrawings: function () { return engine.getDrawings(); },
+      getSelection: function () { return engine.selection ? JSON.parse(JSON.stringify(engine.selection)) : null; },
+      removeSelectedDrawing: function () { return engine.removeSelectedDrawing(); },
       setDrawings: function (list) { engine.setDrawings(list); return api; },
       clearDrawings: function () { engine.clearDrawings(); return api; },
       setToolsEnabled: function (enabled) { engine.setToolsEnabled(enabled); return api; },

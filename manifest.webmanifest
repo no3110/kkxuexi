@@ -1,7 +1,7 @@
 {
   "name": "订单流与价格行为 · 0→实战学习系统",
   "short_name": "订单流学习",
-  "description": "离线中文学习系统：道氏理论、价格行为、ICT/SMC、订单流、拍卖理论、威科夫、ATR 风控、综合实战与真实 NQ/GC 案例，配交互图表、实战考核与学习进度。",
+  "description": "49课中文学习系统：分镜课件、理解自测、自主学习计划，MNQ/MGC 30日模拟考核、知识点标注与AI逐笔复盘。",
   "lang": "zh-CN",
   "dir": "ltr",
   "start_url": "./index.html",

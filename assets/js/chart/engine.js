@@ -79,10 +79,19 @@
     this.axis = { x: 0, w: 0 };
     this.timeAxis = { y: 0, h: 0 };
     this.panes = [];
+    this.paneSizeOverrides = Object.create(null);
+    this._paneLayout = [];
+    this.paneResizeDrag = null;
+    this.axisScaleDrag = null;
+    this.timeZoomDrag = null;
+    this.priceScaleOverride = null;
+    this.heightResize = null;
+    this.selection = null;
     this.ladderSide = false;
     this.ladderRect = null;
     this.narrow = false;
     this.barW = 4;
+    this.trailingBars = 0;
     this.yMin = 0;
     this.yMax = 1;
     this.priceTicks = [];
@@ -164,8 +173,20 @@
       'pointer-events:none', 'white-space:nowrap', 'overflow:hidden', 'z-index:2',
       'font-variant-numeric:tabular-nums'
     ].join(';');
+    var resizeHandle = null;
+    if (this.options.resizableHeight) {
+      resizeHandle = doc.createElement('button');
+      resizeHandle.type = 'button';
+      resizeHandle.className = 'lq-chart-resize-handle';
+      resizeHandle.setAttribute('aria-label', '拖动调整图表高度');
+      resizeHandle.title = '拖动调整图表高度';
+      resizeHandle.style.cssText = 'position:absolute;left:50%;bottom:2px;transform:translateX(-50%);z-index:5;width:52px;height:12px;padding:0;border:0;background:transparent;cursor:ns-resize;touch-action:none';
+      resizeHandle.innerHTML = '<span style="display:block;width:30px;height:3px;border-radius:2px;background:#65758b;margin:auto"></span>';
+    }
     wrapper.appendChild(canvas);
     wrapper.appendChild(info);
+    if (resizeHandle) wrapper.appendChild(resizeHandle);
+    if (resizeHandle) this._bindHeightResize(resizeHandle);
     if (this.host) this.host.appendChild(wrapper);
     this.wrapper = wrapper;
     this.canvas = canvas;
@@ -436,7 +457,7 @@
     var color = up ? P.bullText : P.bearText;
     var dec = Math.min(4, H.priceDecimals(b.c));
     e.sym.textContent = (this.scenario.symbol || this.scenario.id || '') + ' · ' + (this.scenario.timeframe || '');
-    e.time.textContent = H.timeLabel(b.t, 0, this.narrow ? 'auto' : 'full');
+    e.time.textContent = this.formatTime ? this.formatTime(b.t) : H.timeLabel(b.t, 0, this.narrow ? 'auto' : 'full');
     var fields = [b.o, b.h, b.l, b.c];
     for (var f = 0; f < 4; f++) e.ohlc[f].value.textContent = H.fmtFixed(fields[f], dec);
     e.chg.textContent = (up ? '+' : '') + H.fmtFixed(chg, dec) + ' (' + (up ? '+' : '') + pct.toFixed(2) + '%)';
@@ -527,26 +548,29 @@
     plotW = Math.max(60, plotW);
 
     var available = h - padT - padB - timeH - defs.length * gap;
-    var sum = 0, i;
-    for (i = 0; i < defs.length; i++) sum += defs[i].h;
-    var minMain = H.clamp(available * 0.5, 90, 210);
-    if (available - sum < minMain && sum > 0) {
-      var factor = Math.max(0, (available - minMain) / sum);
-      factor = Math.max(0.34, factor);
-      for (i = 0; i < defs.length; i++) defs[i].h = Math.max(20, Math.round(defs[i].h * factor));
-      sum = 0;
-      for (i = 0; i < defs.length; i++) sum += defs[i].h;
+    var i, paneTotal = 0;
+    defs.forEach(function (def) {
+      if (this.paneSizeOverrides[def.key]) def.h = this.paneSizeOverrides[def.key];
+      def.h = Math.max(24, def.h); paneTotal += def.h;
+    }, this);
+    var minMain = H.clamp(available * 0.34, 72, 150);
+    if (paneTotal > available - minMain && paneTotal > 0) {
+      var fit = Math.max(0.2, (available - minMain) / paneTotal);
+      paneTotal = 0;
+      defs.forEach(function (def) { def.h = Math.max(24, Math.round(def.h * fit)); paneTotal += def.h; });
     }
-    var mainH = Math.max(60, available - sum);
+    var mainH = Math.max(64, available - paneTotal);
 
     this.plot = { x: padL, y: padT, w: plotW, h: mainH, right: padL + plotW, bottom: padT + mainH };
     this.axis = { x: padL + plotW, w: axisW };
     this.timeAxis = { y: h - timeH, h: timeH };
     this.panes = [];
+    this._paneLayout = [{ key: 'main', h: mainH, y: this.plot.y, bottom: this.plot.bottom }];
     var y = this.plot.bottom;
     for (i = 0; i < defs.length; i++) {
       y += gap;
       this.panes.push({ key: defs[i].key, x: padL, y: y, w: plotW, h: defs[i].h, right: padL + plotW, bottom: y + defs[i].h });
+      this._paneLayout.push({ key: defs[i].key, h: defs[i].h, y: y, bottom: y + defs[i].h });
       y += defs[i].h;
     }
     this.lastPaneBottom = this.panes.length ? this.panes[this.panes.length - 1].bottom : this.plot.bottom;
@@ -564,6 +588,52 @@
     }
     this.gap = gap;
     this._layoutInfoBar();
+  };
+
+  Engine.prototype.resizePaneBoundary = function (boundary, delta, initialTop) {
+    if (!this._paneLayout || boundary < 0 || boundary >= this._paneLayout.length - 1) return false;
+    var top = this._paneLayout[boundary], bottom = this._paneLayout[boundary + 1];
+    var minTop = boundary === 0 ? 90 : 36, minBottom = 36;
+    var total = top.h + bottom.h;
+    var nextTop = H.clamp((isFinite(Number(initialTop)) ? Number(initialTop) : top.h) + delta, minTop, total - minBottom);
+    if (boundary > 0) this.paneSizeOverrides[top.key] = nextTop;
+    this.paneSizeOverrides[bottom.key] = total - nextTop;
+    this.resize();
+    return true;
+  };
+
+  Engine.prototype._paneBoundaryAt = function (pos) {
+    if (!this.options.paneResizing || pos.x < this.plot.x || pos.x > this.plot.right) return -1;
+    for (var i = 0; i < this._paneLayout.length - 1; i++) {
+      if (Math.abs(pos.y - this._paneLayout[i].bottom) <= 7) return i;
+    }
+    return -1;
+  };
+
+  Engine.prototype._bindHeightResize = function (handle) {
+    var self = this, id = null;
+    function down(e) {
+      e.preventDefault(); e.stopPropagation(); id = e.pointerId;
+      self.heightResize = { startY: e.clientY, startHeight: self._baseH || H.num(self.options.height, DEFAULT_HEIGHT) };
+      try { handle.setPointerCapture(id); } catch (_) {}
+    }
+    function move(e) {
+      if (id !== e.pointerId || !self.heightResize) return;
+      var height = H.clamp(self.heightResize.startHeight + e.clientY - self.heightResize.startY, 300, 1800);
+      self._explicitHeight = Math.round(height);
+      self.options.height = self._explicitHeight;
+      self.resize();
+    }
+    function up(e) {
+      if (id !== e.pointerId) return;
+      try { handle.releasePointerCapture(id); } catch (_) {}
+      if (typeof self.options.onHeightChange === 'function') self.options.onHeightChange(self._explicitHeight);
+      id = null; self.heightResize = null;
+    }
+    this._on(handle, 'pointerdown', down);
+    this._on(handle, 'pointermove', move);
+    this._on(handle, 'pointerup', up);
+    this._on(handle, 'pointercancel', up);
   };
 
   Engine.prototype._computeDefaultView = function () {
@@ -653,7 +723,7 @@
       this._layout();
       if (!this.view) this.view = this._computeDefaultView();
       this.view = this._clampView(this.view);
-      this.barW = this.plot.w / Math.max(1, this.view.to - this.view.from + 1);
+      this.barW = this.plot.w / Math.max(1, this.view.to - this.view.from + 1 + this.trailingBars);
       this._draw();
     } catch (err) {
       this._handleError(err);
@@ -680,6 +750,7 @@
     var to = H.num(vp.to, this.view ? this.view.to : this.bars.length - 1);
     this.view = this._clampView({ from: from, to: to });
     this.hover.active = false;
+    this._notifyViewport();
     this._invalidate();
     return this;
   };
@@ -688,12 +759,19 @@
     if (this.destroyed || !this.scenario) return this;
     this.view = this._computeDefaultView();
     this.hover.active = false;
+    this._notifyViewport();
     this._invalidate();
     return this;
   };
 
   Engine.prototype.getScenario = function () {
     return this.scenario;
+  };
+
+  Engine.prototype._notifyViewport = function () {
+    if (typeof this.options.onViewportChange !== 'function' || !this.view) return;
+    try { this.options.onViewportChange({ from: this.view.from, to: this.view.to, count: this.bars.length }); }
+    catch (err) { C.warn('onViewportChange callback failed', err); }
   };
 
   /* ================================================================ *
@@ -717,13 +795,13 @@
       valid.push(copy);
     }
     this.drawingAnns = this.scenario ? O.resolve(valid, this.scenario) : [];
-    if (emit) this._emitDrawings();
+    if (emit) this._emitDrawings({ type: 'set' });
     this._refreshNow();
   };
 
-  Engine.prototype._emitDrawings = function () {
+  Engine.prototype._emitDrawings = function (change) {
     if (!this._onDrawingChange) return;
-    try { this._onDrawingChange(this.getDrawings()); } catch (err) { C.warn('onDrawingChange 回调异常', err); }
+    try { this._onDrawingChange(this.getDrawings(), change || { type: 'set' }); } catch (err) { C.warn('onDrawingChange 回调异常', err); }
   };
 
   Engine.prototype.getDrawings = function () {
@@ -743,9 +821,20 @@
     this._toolDraw = null;
     this.draftRaw = null;
     this.draftAnn = null;
-    this._emitDrawings();
+    this._emitDrawings({ type: 'clear' });
     this._refreshNow();
     return this;
+  };
+
+  Engine.prototype.removeSelectedDrawing = function () {
+    if (!this.selection || this.selection.type !== 'drawing') return false;
+    var index = this.selection.index;
+    if (index < 0 || index >= this.drawings.length) return false;
+    this.drawings.splice(index, 1); this.selection = null;
+    if (typeof this.options.onSelectionChange === 'function') this.options.onSelectionChange(null);
+    this.drawingAnns = this.scenario ? O.resolve(this.drawings, this.scenario) : [];
+    this._emitDrawings({ type: 'delete', index: index }); this._refreshNow();
+    return true;
   };
 
   Engine.prototype.setToolsEnabled = function (enabled) {
@@ -844,7 +933,10 @@
     td.endX = pos.x;
     td.endY = pos.y;
     this.draftRaw = this._makeDraft(td.tool, td.startBar, td.startPrice, bar, price);
-    this.draftAnn = this.scenario ? O.resolve([this.draftRaw], this.scenario)[0] || null : null;
+    if (td.tool === 'vprofile') {
+      this.draftAnn = { kind: 'zone', x1: Math.min(td.startBar, bar), x2: Math.max(td.startBar, bar),
+        y1: this.yMin, y2: this.yMax, tone: 'info', label: '成交分布选区' };
+    } else this.draftAnn = this.scenario ? O.resolve([this.draftRaw], this.scenario)[0] || null : null;
     this._invalidate();
   };
 
@@ -892,7 +984,7 @@
     if (!O.normalize(raw)) { this._invalidate(); return; }
     this.drawings.push(raw);
     this.drawingAnns = this.scenario ? O.resolve(this.drawings, this.scenario) : [];
-    this._emitDrawings();
+    this._emitDrawings({ type: 'add', index: this.drawings.length - 1 });
     this._refreshNow();
   };
 
@@ -1003,6 +1095,11 @@
       if (isFinite(bl) && bl < lo) lo = bl;
       if (isFinite(bh) && bh > hi) hi = bh;
     }
+    if (this.replayPreview && view.to >= n - 2) {
+      var previewLow = H.num(this.replayPreview.l, NaN), previewHigh = H.num(this.replayPreview.h, NaN);
+      if (isFinite(previewLow)) lo = Math.min(lo, previewLow);
+      if (isFinite(previewHigh)) hi = Math.max(hi, previewHigh);
+    }
     var annRange = O.collectPriceRange(anns || this.anns, view, n, this.bars);
     if (annRange) { lo = Math.min(lo, annRange[0]); hi = Math.max(hi, annRange[1]); }
     if (!isFinite(lo) || !isFinite(hi)) {
@@ -1017,6 +1114,10 @@
     var pad = (hi - lo) * 0.075;
     this.yMin = lo - pad;
     this.yMax = hi + pad;
+    if (this.priceScaleOverride && this.priceScaleOverride.max > this.priceScaleOverride.min) {
+      this.yMin = this.priceScaleOverride.min;
+      this.yMax = this.priceScaleOverride.max;
+    }
 
     var target = H.clamp(Math.round(this.plot.h / 32), 3, 10);
     var step = H.niceStep((this.yMax - this.yMin) / target);
@@ -1047,7 +1148,7 @@
       this.timeTicks.push({
         i: idx,
         x: this.xOfBar(idx),
-        label: H.timeLabel(this.bars[bi].t, spanMs, timeMode)
+        label: this.formatTime ? this.formatTime(this.bars[bi].t) : H.timeLabel(this.bars[bi].t, spanMs, timeMode)
       });
       if (this.timeTicks.length > 24) break;
     }
@@ -1066,10 +1167,15 @@
     if (!this.scenario) { this._drawPlaceholder(); this._updateInfo(); return; }
     if (!this.plot || !this.plot.w) this._layout();
     this.view = this._clampView(this.view);
-    this.barW = this.plot.w / Math.max(1, this.view.to - this.view.from + 1);
+    this.barW = this.plot.w / Math.max(1, this.view.to - this.view.from + 1 + this.trailingBars);
+    if (this.panels.footprint && this.barW >= 22) {
+      for (var fi = Math.max(0, Math.floor(this.view.from)); fi <= Math.min(this.bars.length - 1, Math.ceil(this.view.to)); fi++) {
+        if (this.bars[fi].getFootprint) this.bars[fi].getFootprint();
+      }
+    }
     var anns = this._allAnns();
     this._ensureSwings();
-    this._computeScale(anns);
+    this._computeScale(this.options.scaleDrawings === false ? this.anns : anns);
 
     ctx.save();
     ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
@@ -1176,6 +1282,7 @@
     ctx.rect(plot.x, plot.y, plot.w, plot.h);
     ctx.clip();
     for (var i = from; i <= to; i++) {
+      if (this.replayPreview && this.view.to >= n - 2 && this.replayPreview.barIndex === i) continue;
       var b = bars[i];
       if (!b) continue;
       var o = H.num(b.o, NaN), hh = H.num(b.h, NaN), ll = H.num(b.l, NaN), c = H.num(b.c, NaN);
@@ -1232,6 +1339,11 @@
       this.ctx.moveTo(this.panes[k].x, Math.round(this.panes[k].y) + 0.5);
       this.ctx.lineTo(this.panes[k].right, Math.round(this.panes[k].y) + 0.5);
       this.ctx.stroke();
+    }
+    if (this.options.paneResizing) {
+      var separators = [this.plot.bottom].concat(this.panes.slice(0, -1).map(function (pane) { return pane.bottom; }));
+      this.ctx.fillStyle = 'rgba(125,211,252,0.58)';
+      separators.forEach(function (y) { this.ctx.fillRect(this.plot.x + this.plot.w * 0.46, Math.round(y) - 1, this.plot.w * 0.08, 3); }, this);
     }
   };
 
@@ -1322,7 +1434,7 @@
     var barData = this.bars[bar];
     if (barData) {
       var spanMs = (this.view.to - this.view.from) * H.num(this.scenario.intervalMs, 3600000);
-      var tLabel = H.timeLabel(barData.t, spanMs, 'full');
+      var tLabel = this.formatTime ? this.formatTime(barData.t) : H.timeLabel(barData.t, spanMs, 'full');
       H.setFont(ctx, this.narrow ? C.sizes.axisNarrow : C.sizes.axis, '500', true);
       var tw = ctx.measureText(tLabel).width + 12;
       var tx = H.clamp(x - tw / 2, plot.x, plot.right - tw);
@@ -1468,10 +1580,17 @@
     e.preventDefault();
     var pos = this._pointerPos(e);
     var plot = this.plot, n = this.bars.length;
-    if (pos.x < plot.x || pos.x > plot.right) return;
     var dy = e.deltaY;
     if (e.deltaMode === 1) dy *= 16;
     else if (e.deltaMode === 2) dy *= 100;
+    if (this.options.axisScale && pos.x >= plot.right && pos.x <= plot.right + this.axis.w && pos.y >= plot.y && pos.y <= plot.bottom) {
+      var anchorPrice = this.priceAtY(H.clamp(pos.y, plot.y, plot.bottom));
+      var oldRange = this.yMax - this.yMin, nextRange = H.clamp(oldRange * Math.exp(dy * 0.002), Math.max(0.000001, oldRange * 0.02), oldRange * 50);
+      var fracPrice = H.clamp((anchorPrice - this.yMin) / Math.max(0.000001, oldRange), 0, 1);
+      this.priceScaleOverride = { min: anchorPrice - fracPrice * nextRange, max: anchorPrice + (1 - fracPrice) * nextRange };
+      this._invalidate(); return;
+    }
+    if (pos.x < plot.x || pos.x > plot.right) return;
     var span = this.view.to - this.view.from;
     var maxSpan = Math.max(1, n - 1);
     var minSpan = Math.min(9, maxSpan);
@@ -1479,9 +1598,10 @@
     var newSpan = H.clamp(span * factor, minSpan, maxSpan);
     if (Math.abs(newSpan - span) < 1e-4) return;
     var frac = H.clamp((pos.x - plot.x) / plot.w, 0, 1);
-    var anchor = this.view.from + frac * (span + 1) - 0.5;
-    var newFrom = anchor + 0.5 - frac * (newSpan + 1);
+    var anchor = this.view.from + frac * (span + 1 + this.trailingBars) - 0.5;
+    var newFrom = anchor + 0.5 - frac * (newSpan + 1 + this.trailingBars);
     this.view = this._clampView({ from: newFrom, to: newFrom + newSpan });
+    this._notifyViewport();
     this.hover.active = false;
     this._invalidate();
   };
@@ -1508,6 +1628,23 @@
     if (!this._interactive()) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     var pos = this._pointerPos(e);
+    var boundary = this._paneBoundaryAt(pos);
+    if (boundary >= 0) {
+      var pair = this._paneLayout[boundary], next = this._paneLayout[boundary + 1];
+      this.paneResizeDrag = { id: e.pointerId, boundary: boundary, startY: pos.y, startTop: pair.h, total: pair.h + next.h };
+      try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      this.canvas.style.cursor = 'ns-resize'; return;
+    }
+    if (this.options.axisScale && pos.x >= this.plot.right && pos.x <= this.plot.right + this.axis.w && pos.y >= this.plot.y && pos.y <= this.plot.bottom && !this.tool) {
+      this.axisScaleDrag = { id: e.pointerId, startY: pos.y, min: this.yMin, max: this.yMax, anchor: this.priceAtY(pos.y) };
+      try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      this.canvas.style.cursor = 'ns-resize'; return;
+    }
+    if (this.options.timeAxisScale && pos.y >= this.timeAxis.y && pos.x >= this.plot.x && pos.x <= this.plot.right && !this.tool) {
+      this.timeZoomDrag = { id: e.pointerId, startX: pos.x, from: this.view.from, to: this.view.to };
+      try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      this.canvas.style.cursor = 'ew-resize'; return;
+    }
     // V2：画线工具激活时，按下开始创建画线（而不是平移）
     if (this.tool) {
       try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* noop */ }
@@ -1546,6 +1683,25 @@
     var pos = this._pointerPos(e);
     if (this.ptrs[e.pointerId]) { this.ptrs[e.pointerId].x = pos.x; this.ptrs[e.pointerId].y = pos.y; }
     if (!this.scenario) return;
+    if (this.paneResizeDrag && this.paneResizeDrag.id === e.pointerId) {
+      this.resizePaneBoundary(this.paneResizeDrag.boundary, pos.y - this.paneResizeDrag.startY, this.paneResizeDrag.startTop);
+      return;
+    }
+    if (this.axisScaleDrag && this.axisScaleDrag.id === e.pointerId) {
+      var scale = this.axisScaleDrag, initialRange = scale.max - scale.min;
+      var nextRange = H.clamp(initialRange * Math.exp((pos.y - scale.startY) * 0.005), Math.max(0.000001, initialRange * 0.02), initialRange * 50);
+      var anchorFrac = H.clamp((scale.anchor - scale.min) / initialRange, 0, 1);
+      this.priceScaleOverride = { min: scale.anchor - anchorFrac * nextRange, max: scale.anchor + (1 - anchorFrac) * nextRange };
+      this._invalidate(); return;
+    }
+    if (this.timeZoomDrag && this.timeZoomDrag.id === e.pointerId) {
+      var zoom = this.timeZoomDrag, span = zoom.to - zoom.from, nBars = this.bars.length;
+      var nextSpan = H.clamp(span * Math.exp((pos.x - zoom.startX) * 0.006), Math.min(9, nBars - 1), nBars - 1);
+      var center = (zoom.from + zoom.to) / 2;
+      this.view = this._clampView({ from: center - nextSpan / 2, to: center + nextSpan / 2 });
+      this._notifyViewport();
+      this._invalidate(); return;
+    }
     // V2：拖拽创建画线时的实时预览
     if (this._toolDraw && this._toolDraw.id === e.pointerId) {
       this._updateToolDraw(pos);
@@ -1564,9 +1720,10 @@
       var minSpan = Math.min(9, maxSpan);
       var newSpan = H.clamp(span * factor, minSpan, maxSpan);
       var frac = H.clamp((midX - plot.x) / plot.w, 0, 1);
-      var anchor = this.pinch.from + frac * (span + 1) - 0.5;
-      var newFrom = anchor + 0.5 - frac * (newSpan + 1);
+      var anchor = this.pinch.from + frac * (span + 1 + this.trailingBars) - 0.5;
+      var newFrom = anchor + 0.5 - frac * (newSpan + 1 + this.trailingBars);
       this.view = this._clampView({ from: newFrom, to: newFrom + newSpan });
+      this._notifyViewport();
       this._invalidate();
       return;
     }
@@ -1576,9 +1733,10 @@
       if (!this.drag.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) this.drag.moved = true;
       if (this.drag.moved) {
         var span0 = this.drag.to - this.drag.from;
-        var bw = this.plot.w / Math.max(1, span0 + 1);
+        var bw = this.plot.w / Math.max(1, span0 + 1 + this.trailingBars);
         var shiftBars = -dx / Math.max(0.001, bw);
         this.view = this._clampView({ from: this.drag.from + shiftBars, to: this.drag.to + shiftBars });
+        this._notifyViewport();
         this.hover.active = false;
         if (this.canvas) this.canvas.style.cursor = 'grabbing';
         this._invalidate();
@@ -1589,12 +1747,28 @@
       return;
     }
     if (e.pointerType === 'mouse') {
+      if (this.options.paneResizing && this._paneBoundaryAt(pos) >= 0) { this.canvas.style.cursor = 'ns-resize'; return; }
+      if (this.options.axisScale && pos.x >= this.plot.right && pos.x <= this.plot.right + this.axis.w && pos.y >= this.plot.y && pos.y <= this.plot.bottom) { this.canvas.style.cursor = 'ns-resize'; return; }
+      if (this.options.timeAxisScale && pos.y >= this.timeAxis.y && pos.x >= this.plot.x && pos.x <= this.plot.right) { this.canvas.style.cursor = 'ew-resize'; return; }
+      if (this.options.drawingEdit) {
+        var editHit = this._annotationHit(pos) || this._drawingHit(pos);
+        if (editHit) { this.canvas.style.cursor = editHit.handle && editHit.handle !== 'body' ? 'crosshair' : 'move'; return; }
+      }
+      if (this.canvas) this.canvas.style.cursor = 'crosshair';
       this._setHover(pos.x, pos.y);
       this._invalidate();
     }
   };
 
   Engine.prototype._onPointerUp = function (e) {
+    if ((this.paneResizeDrag && this.paneResizeDrag.id === e.pointerId) ||
+        (this.axisScaleDrag && this.axisScaleDrag.id === e.pointerId) ||
+        (this.timeZoomDrag && this.timeZoomDrag.id === e.pointerId)) {
+      try { this.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      this.paneResizeDrag = null; this.axisScaleDrag = null; this.timeZoomDrag = null;
+      if (this.canvas) this.canvas.style.cursor = 'crosshair';
+      this._invalidate(); return;
+    }
     // V2：结束画线创建
     if (this._toolDraw && this._toolDraw.id === e.pointerId) {
       var posT = this._pointerPos(e);
@@ -1645,6 +1819,10 @@
     if (!this._interactive()) return;
     if (this.tool) return; // 画线工具激活时双击不重置视口
     e.preventDefault();
+    var pos = this._pointerPos(e);
+    if (this.options.axisScale && pos.x >= this.plot.right && pos.x <= this.plot.right + this.axis.w && pos.y >= this.plot.y && pos.y <= this.plot.bottom) {
+      this.priceScaleOverride = null; this._invalidate(); return;
+    }
     this.resetViewport();
   };
 

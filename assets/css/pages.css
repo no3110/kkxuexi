@@ -1378,7 +1378,7 @@
 }
 
 /* ==========================================================================
-   V2 · 移动端底部快捷栏 + PWA 安装按钮
+   移动端底部快捷栏
    ========================================================================== */
 .bottom-nav { display: none; }
 
@@ -1436,38 +1436,6 @@
     color: var(--dim);
   }
   .toast-root { bottom: calc(76px + env(safe-area-inset-bottom)); }
-}
-
-.pwa-install-btn {
-  position: fixed;
-  right: 16px;
-  bottom: calc(20px + env(safe-area-inset-bottom));
-  z-index: 80;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 9px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(160deg, var(--brand-2), var(--brand));
-  color: var(--brand-ink);
-  font-weight: 700;
-  font-size: 0.82rem;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
-  cursor: pointer;
-}
-.pwa-install-icon .icon { width: 17px; height: 17px; }
-.pwa-install-close {
-  margin-left: 2px;
-  padding: 0 3px;
-  font-size: 1.05rem;
-  line-height: 1;
-  opacity: 0.65;
-  cursor: pointer;
-}
-@media (max-width: 900px) {
-  .pwa-install-btn { bottom: calc(76px + env(safe-area-inset-bottom)); }
 }
 
 /* ==========================================================================

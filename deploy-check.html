@@ -56,7 +56,7 @@
     <h2>如果检查失败，按下面顺序排查</h2>
     <ul>
       <li><b>检查 1：站点根目录是否直接有 index.html</b>。如果文件被放在 <code>dist/</code> 或 <code>某文件夹/</code> 下面，把里面的内容移到根目录（根目录应同时看到 <code>index.html</code> 和 <code>assets/</code>）。</li>
-      <li><b>检查 2：是否上传完整</b>。完整包有 49 个文件；至少要保证 <code>assets/js/core/namespace.js</code>、<code>assets/js/app/app.js</code> 等脚本能直接打开。</li>
+      <li><b>检查 2：是否上传完整</b>。请上传完整部署包；至少要保证 <code>assets/js/core/namespace.js</code>、<code>assets/js/app/app.js</code> 及模拟考核新增脚本能直接打开。</li>
       <li><b>检查 3：是否上传的是 ZIP 包并成功解压</b>。EdgeOne Pages Drop 支持 ZIP 自动解压，但 ZIP 根目录必须是 index.html，不能再套一层 <code>dist/</code>。本站预打包的 <code>orderflow-learning-deploy.zip</code> 就是根目录结构。</li>
       <li><b>检查 4：刷新缓存</b>。Ctrl+F5（或手机清除站点数据）后重试；若之前成功安装过 PWA，改 <code>sw.js</code> 的 CACHE_VERSION 后重新部署。</li>
       <li><b>检查 5：路径大小写/文件权限</b>。本站资源都是小写英文路径；如果平台把路径改成了别的层级（如 <code>/project/xxx/</code>），直接用相对路径的 index.html 仍应能加载，除非资源未上传。</li>
@@ -87,6 +87,14 @@
     'assets/js/core/store.js',
     'assets/js/app/app.js',
     'assets/js/app/pages/exam.js',
+    'assets/js/app/pages/simulation.js',
+    'assets/js/sim/market.js',
+    'assets/js/sim/account.js',
+    'assets/js/core/ai.js',
+    'assets/js/content/m00-foundation.js',
+    'assets/js/chart/workbench.js',
+    'assets/js/app/course-player.js',
+    'assets/css/lab.css',
     'assets/js/chart/chart.js',
     'assets/js/content/m09-real-cases.js',
     'assets/js/data/real/nq-gc.js',

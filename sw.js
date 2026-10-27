@@ -8,13 +8,21 @@
  */
 'use strict';
 
-var CACHE_VERSION = 'lq-shell-v2.0.0';
+var CACHE_VERSION = 'lq-shell-v3.9.2';
 var SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './assets/css/main.css',
   './assets/css/pages.css',
+  './assets/css/lab.css',
+  './assets/js/core/ai.js',
+  './assets/js/content/m00-foundation.js',
+  './assets/js/chart/workbench.js',
+  './assets/js/sim/market.js',
+  './assets/js/sim/account.js',
+  './assets/js/app/course-player.js',
+  './assets/js/app/pages/simulation.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/apple-touch-icon.png',
@@ -101,6 +109,15 @@ self.addEventListener('fetch', function (event) {
   if (!isCacheable(request)) return; // 交给浏览器默认处理（不缓存外部请求）
 
   var isNavigation = request.mode === 'navigate';
+
+  // Refresh the HTML entry when online so old cached HTML cannot hide new routes.
+  if (isNavigation) {
+    event.respondWith(fetch(request).then(function (response) {
+      if (response.ok) { var copy = response.clone(); caches.open(CACHE_VERSION).then(function (cache) { return cache.put(request, copy); }).catch(function () {}); }
+      return response;
+    }).catch(function () { return caches.match(request).then(function (cached) { return cached || caches.match('./index.html'); }); }));
+    return;
+  }
 
   event.respondWith(
     caches.match(request, { ignoreSearch: false }).then(function (cached) {

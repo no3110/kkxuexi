@@ -15,10 +15,10 @@
 
   function chartHeight() {
     var width = global.innerWidth || 1200;
-    if (width <= 480) return 290;
-    if (width <= 640) return 320;
-    if (width <= 900) return 370;
-    return 440;
+    if (width <= 480) return 380;
+    if (width <= 640) return 400;
+    if (width <= 900) return 440;
+    return 520;
   }
 
   function datasetCardHTML(dataset) {
@@ -142,9 +142,12 @@
           '<div class="flex gap-8 items-center flex-wrap">' +
           LQ.ui.dataBadge(scenario) +
           (dataset && dataset.sourceUrl ? '<a class="btn btn-ghost btn-sm" href="' + esc(dataset.sourceUrl) + '" target="_blank" rel="noopener noreferrer">' + LQ.ui.icon('external') + '数据来源' + '</a>' : '') +
+          '<button type="button" class="btn btn-ghost btn-sm" data-real-full>⛶ 全屏</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm" data-real-rotate hidden>⟳ 横屏</button>' +
           '<button type="button" class="btn btn-ghost btn-sm" data-real-close>' + LQ.ui.icon('close') + '关闭预览</button>' +
           '</div></div>' +
-          '<div class="real-preview-chart" data-real-chart></div>' +
+          '<div class="real-preview-chart chart-canvas-wrap" data-real-chart></div>' +
+          '<div class="chart-gesture-hint">拖动 K 线平移 · 滚轮 / 双指缩放 · 上下拖价格轴、左右拖时间轴可拉伸 · 双击或点右下角「复原」</div>' +
           (scenario.dataNote ? '<p class="real-note real-preview-note">' + esc(scenario.dataNote) + '</p>' : '');
       }
 
@@ -180,6 +183,15 @@
           });
           if (state.chart && LQ.ui.attachChartRepaintGuard) {
             state.cleanup = LQ.ui.attachChartRepaintGuard(state.chart, slot);
+          }
+          if (state.chart && LQ.screen) {
+            var guard = state.cleanup, chartRef = state.chart;
+            var offFull = LQ.screen.bindChartFullscreen({
+              root: preview, fill: slot, button: preview.querySelector('[data-real-full]'), rotateButton: preview.querySelector('[data-real-rotate]'),
+              getChart: function () { return chartRef; }, height: chartHeight(), tools: false
+            });
+            preview.classList.add('lq-fullable');
+            state.cleanup = function () { if (guard) guard(); offFull(); preview.classList.remove('lq-fullable', 'is-full'); };
           }
         } catch (err) {
           slot.innerHTML = '<div class="chart-fallback">' + LQ.ui.icon('warn') +

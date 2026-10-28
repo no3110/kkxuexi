@@ -1,0 +1,158 @@
+/* ===================== 分镜课件 V4：图文并排 · 逐句高亮 · 全屏横屏（site-engineer 维护） ===================== */
+.course-player{position:relative;scroll-margin-top:80px}
+.course-player-head{align-items:center}
+.cp-head-chapter{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9fb3c8;text-align:center}
+.cp-head-count{font-family:var(--font-mono);color:#9fb3c8}
+.course-stage{grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);align-items:center;min-height:440px;padding:34px 32px;gap:32px}
+.course-slide-copy{min-width:0}
+.course-slide-visual{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:8px}
+.course-slide-copy [data-say],.course-slide-visual [data-say]{transition:background-color .25s,color .25s,box-shadow .25s;border-radius:5px}
+.course-slide-copy .is-saying,.course-slide-visual .is-saying{background:rgba(125,211,252,.15);color:#f3f8fc;box-shadow:0 0 0 3px rgba(125,211,252,.15)}
+.course-slide-copy h2.is-saying{background:none;box-shadow:none;color:#fff;text-decoration:underline 3px rgba(125,211,252,.55);text-underline-offset:8px}
+.cp-callout{border-left:3px solid #7dd3fc;padding:4px 0 4px 16px}
+.cp-callout.tone-warn{border-color:#f0b90b}
+.cp-callout.tone-pitfall{border-color:#ef5350}
+.cp-callout.tone-story{border-color:#a78bfa}
+.cp-callout.tone-tip{border-color:#26a69a}
+.cp-checklist{list-style:none;padding-left:0!important}
+.cp-checklist label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.cp-checklist input{margin-top:6px;width:17px;height:17px;accent-color:#26a69a;flex:none}
+.cp-checklist input:checked+span{color:#7f93a8;text-decoration:line-through}
+
+/* 概念示意图 */
+.cp-diagram{margin:0;background:#0a111b;border:1px solid #1f2c3d;border-radius:14px;padding:12px 12px 10px}
+.slide-diagram{display:block;width:100%;height:auto;max-height:340px}
+.cp-diagram figcaption{margin-top:6px;font-size:12px;line-height:1.6;color:#8aa0b6;text-align:center}
+
+/* 图表页 */
+.course-stage.is-chart{display:flex;flex-direction:column;align-items:stretch;padding:24px;gap:14px}
+.course-stage.is-chart .course-slide-copy h2{font-size:22px;margin-bottom:10px}
+.course-stage.is-chart .course-slide-copy p{font-size:15px;line-height:1.85}
+.course-stage.is-chart .course-slide-tag{margin-bottom:10px}
+.course-chart-host{height:clamp(340px,44vw,520px);min-height:300px;position:relative}
+.course-chart-hint{font-size:11px;line-height:1.6;color:#70829a}
+.course-stage.is-context .course-visual-label{margin:0 0 2px;text-align:left;letter-spacing:1px}
+.course-player.is-wide .course-stage.is-chart{display:grid;grid-template-columns:minmax(260px,.7fr) minmax(0,1.6fr);align-items:stretch}
+.course-player.is-wide .course-stage.is-chart .course-chart-host{height:500px}
+.course-player.is-wide .course-stage.is-context{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}
+
+/* 表格 / 对比 / 流程 / 公式 */
+.cp-table-wrap{overflow:auto;border:1px solid #1f2c3d;border-radius:12px;background:#0a111b}
+.cp-table{width:100%;border-collapse:collapse;font-size:14px;line-height:1.6;text-align:left}
+.cp-table th,.cp-table td{padding:11px 14px;border-bottom:1px solid #1a2636;vertical-align:top;color:#c2cede}
+.cp-table thead th{color:#7dd3fc;font-weight:600;font-size:12px;letter-spacing:.5px;background:#0f1824;position:sticky;top:0}
+.cp-table tbody th{color:#e6edf3;font-weight:600}
+.cp-table tr:last-child>*{border-bottom:0}
+.cp-compare{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:stretch}
+.cp-compare-col{border:1px solid #1f2c3d;border-radius:12px;padding:16px;background:#0a111b;text-align:left}
+.cp-compare-col.is-left{border-top:3px solid #26a69a}
+.cp-compare-col.is-right{border-top:3px solid #f0b90b}
+.cp-compare-col h3{margin:0 0 10px;font-size:16px}
+.cp-compare-col ul{margin:0;padding-left:18px;font-size:13px;line-height:1.75;color:#c2cede}
+.cp-compare-col li+li{margin-top:6px}
+.cp-vs{align-self:center;font:700 12px var(--font-mono);color:#6f859d}
+.cp-flow{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;text-align:left}
+.cp-flow li{position:relative;display:flex;gap:14px;align-items:center;padding:12px 14px;border:1px solid #1f2c3d;border-radius:12px;background:#0a111b;font-size:14px;color:#c2cede}
+.cp-flow li+li::before{content:"";position:absolute;left:29px;top:-11px;height:10px;border-left:2px dashed #2b4059}
+.cp-flow b{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#123047;color:#7dd3fc;font:700 13px var(--font-mono)}
+.cp-formula{margin:0;padding:20px 22px;border:1px solid #2a3f57;border-radius:12px;background:#0a111b;color:#e6edf3;font:14px/2 var(--font-mono);white-space:pre-wrap;text-align:left;overflow:auto}
+
+/* 学完检验 */
+.cp-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cp-action{display:flex;flex-direction:column;gap:6px;padding:16px;border:1px solid #24364c;border-radius:12px;background:#0a111b;color:#c2cede;text-align:left;font:inherit;cursor:pointer;text-decoration:none;transition:border-color .2s,transform .2s}
+.cp-action:hover{border-color:#7dd3fc;transform:translateY(-2px)}
+.cp-action b{color:#e6edf3;font-size:15px}
+.cp-action span{font-size:12px;color:#8aa0b6;line-height:1.6}
+
+/* 进度条（可点击，带章节刻度） */
+.course-progress{position:relative;height:6px;cursor:pointer}
+.course-progress span{border-radius:0 3px 3px 0}
+.course-progress i{position:absolute;top:0;bottom:0;width:2px;background:#0d141e;pointer-events:none}
+
+/* 控制条 */
+.course-player-controls{justify-content:space-between;gap:10px 18px}
+.cp-main,.cp-options{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cp-play{min-width:128px;justify-content:center}
+.cp-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none}
+.cp-toggle input{accent-color:#7dd3fc;width:15px;height:15px}
+.cp-chapter select{max-width:180px}
+
+/* 全屏（原生与“铺满窗口”兜底共用） */
+.course-player.is-pseudo-full{position:fixed;inset:0;z-index:2147483000;margin:0;width:100vw;height:100vh;height:100dvh}
+html.lq-scroll-lock,html.lq-scroll-lock body{overflow:hidden;overscroll-behavior:none}
+.course-player.is-full{display:flex;flex-direction:column;height:100vh;height:100dvh;margin:0;border:0;border-radius:0;background:#0b1119;overflow:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.course-player.is-full .course-player-head{padding:8px 18px}
+.course-player.is-full .course-stage{flex:1;min-height:0;padding:14px 20px;gap:16px;overflow:hidden;display:flex;flex-direction:column;align-items:stretch;grid-template-rows:minmax(0,1fr)}
+.course-player.is-full .course-slide-copy{flex:0 1 auto;max-height:40%;overflow:auto;padding-right:4px}
+.course-player.is-full .course-slide-visual{flex:1 1 0;min-height:0;height:100%;justify-content:center}
+.course-player.is-full.is-wide .course-stage{display:grid;grid-template-columns:minmax(260px,.85fr) minmax(0,1.5fr);align-items:stretch;padding:18px 26px}
+.course-player.is-full.is-wide .course-stage.is-chart{grid-template-columns:minmax(230px,.5fr) minmax(0,2fr)}
+.course-player.is-full.is-wide .course-slide-copy{max-height:100%;align-self:center}
+.course-player.is-full .course-stage.is-chart .course-slide-visual,.course-player.is-full .course-stage.is-diagram .course-slide-visual{justify-content:stretch}
+.course-player.is-full .course-chart-host{flex:1 1 0;height:auto;min-height:220px}
+.course-player.is-full .cp-diagram{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
+.course-player.is-full .slide-diagram{flex:1;min-height:0;max-height:none;height:100%}
+.course-player.is-full .cp-table-wrap,.course-player.is-full .cp-flow,.course-player.is-full .cp-compare{max-height:100%;overflow:auto}
+.course-player.is-full .course-player-controls{padding:8px 18px}
+.course-player.is-full .course-player-note{padding:0 18px 8px}
+.course-player.is-full .lq-chart canvas{touch-action:none!important}
+.course-player.is-rotated,.course-player.is-pseudo-full.is-rotated{position:fixed;top:0;left:100vw;right:auto;bottom:auto;width:100vh;height:100vw;width:100dvh;height:100dvw;transform-origin:0 0;transform:rotate(90deg)}
+
+/* 讲义里的图表：操作提示与全屏 */
+.chart-gesture-hint{font-size:11px;color:#70829a;line-height:1.6;padding:6px 2px 0}
+.lq-fullable.is-full{display:flex;flex-direction:column;margin:0;background:#0b1119;padding:12px;height:100vh;height:100dvh;border-radius:0;overflow:auto}
+.lq-fullable.is-pseudo-full{position:fixed;inset:0;z-index:2147483000;width:100vw}
+.lq-fullable.is-full .chart-canvas-wrap{flex:1 1 0;min-height:260px;overflow:hidden}
+.lq-fullable.is-full .lq-chart canvas{touch-action:none!important}
+.lq-fullable.is-rotated{position:fixed;top:0;left:100vw;right:auto;bottom:auto;width:100vh;height:100vw;width:100dvh;height:100dvw;transform-origin:0 0;transform:rotate(90deg)}
+
+/* 课程学习路径条 */
+.lesson-path{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:22px 0 4px;padding:0;list-style:none;counter-reset:lp}
+.lesson-path li{counter-increment:lp}
+.lesson-path a,.lesson-path button{display:flex;gap:10px;align-items:center;width:100%;height:100%;padding:12px 14px;border:1px solid #213245;border-radius:12px;background:#0d141e;color:#c2cede;font:inherit;text-align:left;cursor:pointer;text-decoration:none;transition:border-color .2s}
+.lesson-path a:hover,.lesson-path button:hover{border-color:#7dd3fc}
+.lesson-path b::before{content:counter(lp);display:inline-grid;place-items:center;width:22px;height:22px;margin-right:8px;border-radius:50%;background:#123047;color:#7dd3fc;font:700 11px var(--font-mono)}
+.lesson-path b{display:block;font-size:14px;color:#e6edf3}
+.lesson-path small{display:block;margin-top:4px;font-size:11px;color:#8aa0b6;line-height:1.5}
+.lesson-path .is-done{border-color:#1f5e57;background:#0c1a1b}
+.lesson-path .is-done b::before{content:"✓";background:#164a43;color:#5eead4}
+
+@media(max-width:800px){
+  .course-stage{grid-template-columns:1fr;padding:22px 18px;gap:18px;min-height:0}
+  .course-slide-visual:has(.course-key-number){display:none}
+  .course-stage.is-chart{padding:14px}
+  .course-chart-host{height:clamp(330px,100vw,460px)}
+  .slide-diagram{max-height:260px}
+  .cp-compare{grid-template-columns:1fr}
+  .cp-vs{display:none}
+  .cp-actions{grid-template-columns:1fr}
+  .course-player-controls{flex-direction:column;align-items:stretch}
+  .cp-main{display:grid;grid-template-columns:auto 1fr auto auto}
+  .cp-main .cp-lbl{display:none}
+  .cp-main .btn{min-height:42px;font-size:13px;justify-content:center}
+  .cp-options{justify-content:space-between}
+  .cp-chapter select{max-width:130px}
+  .cp-table{font-size:13px}
+  .cp-table th,.cp-table td{padding:9px 10px}
+  .lesson-path{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+  .cp-head-chapter{display:none}
+  .course-player-head{justify-content:space-between}
+  .course-stage.is-chart .course-slide-copy h2{font-size:19px}
+  .lesson-path a,.lesson-path button{padding:10px}
+}
+.sim-workspace.is-pseudo-full{position:fixed;inset:0;z-index:2147483000}
+/* 全屏时控制条压成一行，把高度留给图表（手机横屏尤其需要） */
+.course-player.is-full .course-player-controls{flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;overflow-x:auto;scrollbar-width:none}
+.course-player.is-full .cp-main,.course-player.is-full .cp-options{display:flex;flex-wrap:nowrap;gap:6px}
+.course-player.is-full .cp-main .cp-lbl{display:none}
+.course-player.is-full .cp-main .btn,.course-player.is-full .cp-options .btn{min-height:34px;padding:5px 10px;font-size:12px;white-space:nowrap}
+.course-player.is-full .cp-play{min-width:104px}
+.course-player.is-full .cp-toggle span,.course-player.is-full .course-voice-rate>span{display:none}
+.course-player.is-full .course-player-note{display:none}
+.course-player.is-full.is-wide .course-stage{padding:10px 16px;gap:14px}
+.course-player.is-full.is-wide .course-slide-copy h2{font-size:clamp(18px,2.2vw,28px);margin-bottom:10px}
+.course-player.is-full.is-wide .course-slide-copy p{font-size:clamp(13px,1.4vw,17px);line-height:1.8}
+.course-player.is-full.is-wide .course-slide-tag{margin-bottom:8px}
+.course-player.is-full .cp-head-chapter{display:block}

@@ -8,7 +8,7 @@
  */
 'use strict';
 
-var CACHE_VERSION = 'lq-shell-v3.9.2';
+var CACHE_VERSION = 'lq-shell-v4.0.0';
 var SHELL = [
   './',
   './index.html',
@@ -16,11 +16,14 @@ var SHELL = [
   './assets/css/main.css',
   './assets/css/pages.css',
   './assets/css/lab.css',
+  './assets/css/course.css',
   './assets/js/core/ai.js',
   './assets/js/content/m00-foundation.js',
   './assets/js/chart/workbench.js',
   './assets/js/sim/market.js',
   './assets/js/sim/account.js',
+  './assets/js/app/screen.js',
+  './assets/js/app/slide-visuals.js',
   './assets/js/app/course-player.js',
   './assets/js/app/pages/simulation.js',
   './assets/icons/icon-192.png',

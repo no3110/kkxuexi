@@ -3,7 +3,7 @@
  *   var chart = LQ.chart.create(container, options)
  *   options: { scenario, height, annotations, viewport, interactive, compact,
  *              tools, autoSwings, drawings, onDrawingChange }   // V2 新增
- *   chart.setAnnotations / setViewport / resetViewport / resize / destroy /
+ *   chart.setAnnotations / setViewport / resetViewport / resize / setHeight / resetPriceScale / destroy /
  *         getScenario / el
  *   V2：chart.getDrawings() / setDrawings(list) / clearDrawings() /
  *         setToolsEnabled(bool) / setAutoSwings(bool) / getProfileStats(input)
@@ -41,6 +41,8 @@
       setViewport: noop,
       resetViewport: noop,
       resize: noop,
+      setHeight: noop,
+      resetPriceScale: noop,
       destroy: function () {
         if (el && el.parentNode) el.parentNode.removeChild(el);
         el = null;
@@ -113,6 +115,8 @@
       setViewport: function (vp) { engine.setViewport(vp); return api; },
       resetViewport: function () { engine.resetViewport(); return api; },
       resize: function () { engine.resize(); return api; },
+      setHeight: function (h) { engine.setHeight(h); return api; },
+      resetPriceScale: function () { engine.resetPriceScale(); return api; },
       destroy: function () { engine.destroy(); },
       getScenario: function () { return engine.getScenario(); },
       /* ---- V2 ---- */

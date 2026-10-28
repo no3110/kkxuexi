@@ -38,6 +38,9 @@
 
   function Engine(container, options) {
     this.options = options || {};
+    // 价格轴 / 时间轴拖拽拉伸默认开启；显式传 false 才关闭
+    if (this.options.axisScale === undefined) this.options.axisScale = true;
+    if (this.options.timeAxisScale === undefined) this.options.timeAxisScale = true;
     this.host = (container && isFn(container.appendChild)) ? container : null;
     this.destroyed = false;
 
@@ -85,6 +88,7 @@
     this.axisScaleDrag = null;
     this.timeZoomDrag = null;
     this.priceScaleOverride = null;
+    this.axisHits = null;
     this.heightResize = null;
     this.selection = null;
     this.ladderSide = false;
@@ -185,6 +189,18 @@
     }
     wrapper.appendChild(canvas);
     wrapper.appendChild(info);
+    // 价格轴 / 时间轴触控热区：touch-action:none，手机上在轴上拖动不会滚动页面
+    if (this.options.interactive !== false && (this.options.axisScale || this.options.timeAxisScale)) {
+      this.axisHits = {};
+      [['price', 'ns-resize', '上下拖动拉伸价格轴，双击恢复自动'], ['time', 'ew-resize', '左右拖动拉伸时间轴，双击复原'], ['corner', 'pointer', '复原视图']].forEach(function (def) {
+        var hit = doc.createElement('div');
+        hit.className = 'lq-axis-hit lq-axis-hit--' + def[0];
+        hit.title = def[2];
+        hit.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;z-index:3;touch-action:none;cursor:' + def[1] + ';background:transparent';
+        wrapper.appendChild(hit);
+        self.axisHits[def[0]] = hit;
+      });
+    }
     if (resizeHandle) wrapper.appendChild(resizeHandle);
     if (resizeHandle) this._bindHeightResize(resizeHandle);
     if (this.host) this.host.appendChild(wrapper);
@@ -488,6 +504,11 @@
     if (w > 0 && w < 400) auto = SMALL_HEIGHT;
     this._autoHeight = auto;
     this._baseH = this._explicitHeight || auto;
+    if (this.options.fillHeight && this.host) {
+      // 跟随容器高度（全屏 / 课件舞台）：容器必须有确定高度，否则退回固定高度
+      var hostH = Math.round(this.host.clientHeight || 0);
+      if (hostH >= 180) this._baseH = hostH - ((this.toolsEnabled && this.toolbar) ? TOOLBAR_HEIGHT : 0);
+    }
     this._toolbarH = (this.toolsEnabled && this.toolbar) ? TOOLBAR_HEIGHT : 0;
     var total = this._baseH + this._toolbarH;
     var hCss = total + 'px';
@@ -588,6 +609,22 @@
     }
     this.gap = gap;
     this._layoutInfoBar();
+    this._layoutAxisHits();
+  };
+
+  Engine.prototype._layoutAxisHits = function () {
+    if (!this.axisHits) return;
+    var top = this._toolbarH || 0, plot = this.plot, axis = this.axis, ta = this.timeAxis;
+    function place(el, show, x, y, w, h) {
+      if (!el) return;
+      el.style.display = show ? 'block' : 'none';
+      if (!show) return;
+      el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y + top) + 'px';
+      el.style.width = Math.max(0, Math.round(w)) + 'px'; el.style.height = Math.max(0, Math.round(h)) + 'px';
+    }
+    place(this.axisHits.price, !!this.options.axisScale, axis.x, plot.y, axis.w, plot.h);
+    place(this.axisHits.time, !!this.options.timeAxisScale, plot.x, ta.y, plot.w, ta.h);
+    place(this.axisHits.corner, true, axis.x, ta.y, axis.w, ta.h);
   };
 
   Engine.prototype.resizePaneBoundary = function (boundary, delta, initialTop) {
@@ -728,6 +765,21 @@
     } catch (err) {
       this._handleError(err);
     }
+    return this;
+  };
+
+  Engine.prototype.setHeight = function (height) {
+    if (this.destroyed) return this;
+    var h = H.num(height, 0);
+    this._explicitHeight = h > 0 ? H.clamp(Math.round(h), 180, 2400) : 0;
+    this.options.height = this._explicitHeight || undefined;
+    return this.resize();
+  };
+
+  Engine.prototype.resetPriceScale = function () {
+    if (this.destroyed) return this;
+    this.priceScaleOverride = null;
+    this._invalidate();
     return this;
   };
 
@@ -1388,6 +1440,18 @@
       ctx.fillText(tt.label, tx, ta.y + ta.h / 2 + 1);
     }
     ctx.restore();
+    if (this._interactive()) {
+      // 右下角：复原按钮；价格轴手动拉伸时高亮提示
+      var manual = !!this.priceScaleOverride;
+      var cx = axis.x + 4, cy = ta.y + 2, cw = Math.max(20, axis.w - 8), ch = Math.max(12, ta.h - 4);
+      ctx.fillStyle = manual ? 'rgba(240,185,11,0.18)' : 'rgba(148,163,184,0.10)';
+      ctx.fillRect(cx, cy, cw, ch);
+      H.setFont(ctx, axisFont - 1, '600', false);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = manual ? '#f0b90b' : P.axisText;
+      ctx.fillText(manual ? '⟲ 自动' : '⟲ 复原', cx + cw / 2, cy + ch / 2 + 0.5);
+    }
   };
 
   Engine.prototype._drawCrosshair = function () {
@@ -1532,6 +1596,7 @@
       try {
         this.observer = new global.ResizeObserver(function () { self.resize(); });
         this.observer.observe(this.wrapper);
+        if (this.options.fillHeight && this.host) this.observer.observe(this.host);
       } catch (err) {
         this.observer = null;
       }
@@ -1562,6 +1627,18 @@
     this._on(canvas, 'pointerleave', h.pointerleave);
     this._on(canvas, 'dblclick', h.dblclick);
     this._on(canvas, 'contextmenu', h.contextmenu);
+    if (this.axisHits) {
+      Object.keys(this.axisHits).forEach(function (key) {
+        var el = self.axisHits[key];
+        self._on(el, 'wheel', h.wheel, { passive: false });
+        self._on(el, 'pointerdown', h.pointerdown);
+        self._on(el, 'pointermove', h.pointermove);
+        self._on(el, 'pointerup', h.pointerup);
+        self._on(el, 'pointercancel', h.pointercancel);
+        self._on(el, 'dblclick', h.dblclick);
+        self._on(el, 'contextmenu', h.contextmenu);
+      });
+    }
     // V2：Esc 取消画线 / 退出当前工具
     if (global.document) {
       h.keydown = function (e) { self._onKeyDown(e); };
@@ -1572,6 +1649,10 @@
   Engine.prototype._pointerPos = function (e) {
     var rect = this.canvas ? this.canvas.getBoundingClientRect() : null;
     if (!rect) return { x: 0, y: 0 };
+    // 手机竖屏下用 CSS 旋转 90° 模拟横屏：屏幕坐标需要转回画布坐标
+    if (this.wrapper && this.wrapper.closest && this.wrapper.closest('.is-rotated')) {
+      return { x: e.clientY - rect.top, y: rect.right - e.clientX };
+    }
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
@@ -1592,6 +1673,19 @@
     }
     if (pos.x < plot.x || pos.x > plot.right) return;
     var span = this.view.to - this.view.from;
+    var dx = e.deltaX || 0;
+    if (e.deltaMode === 1) dx *= 16;
+    else if (e.deltaMode === 2) dx *= 100;
+    if (e.shiftKey && !dx) { dx = dy; dy = 0; }
+    if (!e.ctrlKey && Math.abs(dx) > Math.abs(dy)) {
+      // 触控板左右滑 / Shift+滚轮：平移
+      var shift = dx / Math.max(0.001, this.barW);
+      this.view = this._clampView({ from: this.view.from + shift, to: this.view.to + shift });
+      this._notifyViewport();
+      this.hover.active = false;
+      this._invalidate();
+      return;
+    }
     var maxSpan = Math.max(1, n - 1);
     var minSpan = Math.min(9, maxSpan);
     var factor = Math.pow(1.0018, dy);
@@ -1628,6 +1722,12 @@
     if (!this._interactive()) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     var pos = this._pointerPos(e);
+    if (!this.tool && pos.x >= this.plot.right && pos.x <= this.plot.right + this.axis.w && pos.y >= this.timeAxis.y) {
+      e.preventDefault();
+      this.priceScaleOverride = null;
+      this.resetViewport();
+      return;
+    }
     var boundary = this._paneBoundaryAt(pos);
     if (boundary >= 0) {
       var pair = this._paneLayout[boundary], next = this._paneLayout[boundary + 1];
@@ -1658,7 +1758,8 @@
     if (count === 1) {
       this.drag = {
         id: e.pointerId, startX: pos.x, startY: pos.y, lastX: pos.x,
-        from: this.view.from, to: this.view.to, moved: false, pointerType: e.pointerType
+        from: this.view.from, to: this.view.to, moved: false, pointerType: e.pointerType,
+        price: this.priceScaleOverride ? { min: this.priceScaleOverride.min, max: this.priceScaleOverride.max } : null
       };
     } else if (count === 2) {
       this.drag = null;
@@ -1670,9 +1771,15 @@
     var ids = Object.keys(this.ptrs);
     if (ids.length !== 2 || !this._interactive()) { this.pinch = null; return; }
     var a = this.ptrs[ids[0]], b = this.ptrs[ids[1]];
+    var sepX = Math.abs(a.x - b.x), sepY = Math.abs(a.y - b.y);
     this.pinch = {
+      // 两指横向分开 → 缩放时间；两指上下分开 → 拉伸价格
+      mode: sepY > sepX * 1.4 && sepY > 40 ? 'price' : 'time',
       dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+      sepY: Math.max(20, sepY),
       midX: (a.x + b.x) / 2,
+      midY: (a.y + b.y) / 2,
+      min: this.yMin, max: this.yMax,
       from: this.view.from, to: this.view.to
     };
     this.hover.active = false;
@@ -1711,6 +1818,17 @@
     if (this.pinch && Object.keys(this.ptrs).length >= 2) {
       var ids = Object.keys(this.ptrs);
       var a = this.ptrs[ids[0]], b = this.ptrs[ids[1]];
+      if (this.pinch.mode === 'price') {
+        var range0 = this.pinch.max - this.pinch.min;
+        var ratio = this.pinch.sepY / Math.max(20, Math.abs(a.y - b.y));
+        var nextR = H.clamp(range0 * ratio, Math.max(0.000001, range0 * 0.02), range0 * 50);
+        var span0p = Math.max(1, this.plot.h);
+        var fracY = H.clamp((this.plot.bottom - this.pinch.midY) / span0p, 0, 1);
+        var anchorP = this.pinch.min + fracY * range0;
+        this.priceScaleOverride = { min: anchorP - fracY * nextR, max: anchorP + (1 - fracY) * nextR };
+        this._invalidate();
+        return;
+      }
       var dist = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
       var midX = (a.x + b.x) / 2;
       var plot = this.plot, n = this.bars.length;
@@ -1736,6 +1854,11 @@
         var bw = this.plot.w / Math.max(1, span0 + 1 + this.trailingBars);
         var shiftBars = -dx / Math.max(0.001, bw);
         this.view = this._clampView({ from: this.drag.from + shiftBars, to: this.drag.to + shiftBars });
+        if (this.drag.price) {
+          // 价格轴被手动拉伸后，拖动 K 线区域同时上下平移价格
+          var pr = this.drag.price, shiftPrice = dy / Math.max(1, this.plot.h) * (pr.max - pr.min);
+          this.priceScaleOverride = { min: pr.min + shiftPrice, max: pr.max + shiftPrice };
+        }
         this._notifyViewport();
         this.hover.active = false;
         if (this.canvas) this.canvas.style.cursor = 'grabbing';
@@ -1823,6 +1946,7 @@
     if (this.options.axisScale && pos.x >= this.plot.right && pos.x <= this.plot.right + this.axis.w && pos.y >= this.plot.y && pos.y <= this.plot.bottom) {
       this.priceScaleOverride = null; this._invalidate(); return;
     }
+    if (pos.y < this.timeAxis.y) this.priceScaleOverride = null;
     this.resetViewport();
   };
 

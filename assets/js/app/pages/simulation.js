@@ -591,7 +591,7 @@
         closeContextMenu();
       }
       function fullscreenChanged() {
-        var workspace = page.querySelector('.sim-workspace'), active = !!workspace && document.fullscreenElement === workspace;
+        var workspace = page.querySelector('.sim-workspace'), active = !!workspace && (LQ.screen ? LQ.screen.isFullscreen(workspace) : document.fullscreenElement === workspace);
         page.classList.toggle('sim-fullscreen-active', active);
         page.classList.toggle('sim-fullscreen-mode', active);
         var button = page.querySelector('[data-sim-full]');
@@ -600,6 +600,7 @@
       }
       document.addEventListener('pointerdown', dismissContextMenu, true);
       document.addEventListener('fullscreenchange', fullscreenChanged);
+      var offScreenChange = LQ.screen ? LQ.screen.onChange(fullscreenChanged) : null;
       page.addEventListener('input', function (e) { if (e.target.hasAttribute('data-order')) riskPreview(); });
       page.addEventListener('contextmenu', openContextMenu);
       page.addEventListener('change', function (e) {
@@ -694,13 +695,13 @@
             engine._applyDrawings(trade.evidence.drawings.map(mapDrawing), false); sync();
             toast('正在回看 ' + trade.id + '：显示入场时的标注快照'); page.querySelector('[data-sim-chart]').scrollIntoView({ block: 'center', behavior: 'smooth' });
           }
-          else if (button.hasAttribute('data-sim-full')) { var workspace = page.querySelector('.sim-workspace'); if (document.fullscreenElement) await document.exitFullscreen(); else await workspace.requestFullscreen(); }
+          else if (button.hasAttribute('data-sim-full')) { var workspace = page.querySelector('.sim-workspace'); if (LQ.screen) await LQ.screen.toggleFullscreen(workspace); else if (document.fullscreenElement) await document.exitFullscreen(); else await workspace.requestFullscreen(); }
           else if (button.hasAttribute('data-sim-grade')) grade(button.dataset.simGrade);
         } catch (err) { toast(err.message); }
       });
       function visibility() { if (document.hidden) pause(); }
       document.addEventListener('visibilitychange', visibility);
-      activeDestroy = function () { destroyed = true; if (generatingMarket) { stopGeneration(); endGenerationLock(); } pause(); discardForming(); save(); disposeChart(); if (controller) controller.abort(); document.removeEventListener('visibilitychange', visibility); document.removeEventListener('pointerdown', dismissContextMenu, true); document.removeEventListener('fullscreenchange', fullscreenChanged); };
+      activeDestroy = function () { destroyed = true; if (offScreenChange) offScreenChange(); if (LQ.screen && LQ.screen.isFullscreen(page.querySelector('.sim-workspace'))) LQ.screen.exitFullscreen(page.querySelector('.sim-workspace')); if (generatingMarket) { stopGeneration(); endGenerationLock(); } pause(); discardForming(); save(); disposeChart(); if (controller) controller.abort(); document.removeEventListener('visibilitychange', visibility); document.removeEventListener('pointerdown', dismissContextMenu, true); document.removeEventListener('fullscreenchange', fullscreenChanged); };
       if (a) { try { ensureMarket(); workbench(); } catch (err) { setup(); toast('历史考核无法载入：' + err.message); } } else setup();
       return page;
     },

@@ -95,9 +95,9 @@
 
   function previewChartHeight() {
     var w = global.innerWidth || 1200;
-    if (w <= 640) return 280;
-    if (w <= 900) return 340;
-    return 420;
+    if (w <= 640) return 360;
+    if (w <= 900) return 400;
+    return 480;
   }
 
   function previewHTML(scenario) {

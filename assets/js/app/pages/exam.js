@@ -111,10 +111,10 @@
 
   function chartHeight() {
     var width = global.innerWidth || 1200;
-    if (width <= 480) return 300;
-    if (width <= 640) return 330;
-    if (width <= 900) return 380;
-    return 460;
+    if (width <= 480) return 380;
+    if (width <= 640) return 400;
+    if (width <= 900) return 440;
+    return 500;
   }
 
   function moduleTitle(moduleId) {

@@ -158,10 +158,10 @@
   /* ============================ chart ============================ */
 
   function chartHeight(preferred) {
-    var h = Number(preferred) || 420;
+    var h = Math.max(Number(preferred) || 460, 460);
     var width = global.innerWidth || 1200;
-    if (width <= 640) return Math.min(h, 320);
-    if (width <= 900) return Math.min(h, 380);
+    if (width <= 640) return 400;
+    if (width <= 900) return 440;
     return h;
   }
 
@@ -191,9 +191,12 @@
     var caption = section.caption || '';
     return '<div class="chart-top">' +
         '<span class="chart-top-title">' + LQ.ui.icon('chart') + esc(scenarioTitle || '交互图表') + '</span>' +
-        '<span class="chart-legend-hint">' + LQ.ui.dataBadge(scenario) + '</span>' +
+        '<span class="chart-legend-hint">' + LQ.ui.dataBadge(scenario) +
+          ' <button type="button" class="btn btn-sm btn-ghost" data-chart-full>⛶ 全屏</button>' +
+          '<button type="button" class="btn btn-sm btn-ghost" data-chart-rotate hidden>⟳ 横屏</button></span>' +
       '</div>' +
       '<div class="chart-canvas-wrap"><div class="chart-canvas" data-chart-canvas></div></div>' +
+      '<div class="chart-gesture-hint">拖动 K 线平移 · 滚轮 / 双指缩放 · 上下拖价格轴、左右拖时间轴可拉伸 · 双击或点右下角「复原」</div>' +
       '<div class="chart-steps">' +
         '<div class="chart-step-nav">' +
           '<div class="chart-step-pills" role="tablist" aria-label="讲解步骤">' + pills + '</div>' +
@@ -220,7 +223,7 @@
     } catch (err) { scenario = null; }
 
     var figure = document.createElement('figure');
-    figure.className = 'chart-figure';
+    figure.className = 'chart-figure lq-fullable';
     figure.setAttribute('data-chart-section', String(section.__index));
     if (scenario) figure.setAttribute('data-scenario', section.scenario);
     figure.innerHTML = figureHTML(section, scenario);
@@ -238,9 +241,10 @@
     } else {
       try {
         var initial = steps[0] || {};
+        var baseHeight = chartHeight(section.height);
         chart = LQ.chart.create(canvas, {
           scenario: scenario,
-          height: chartHeight(section.height),
+          height: baseHeight,
           annotations: initial.annotations || [],
           tools: true,
           viewport: initial.focus || undefined
@@ -260,6 +264,14 @@
         // 被遮挡 iframe / 后台标签页里 rAF 会被节流，交互后补一次同步重绘
         var repaintCleanup = LQ.ui.attachChartRepaintGuard(chart, figure);
         if (repaintCleanup) state.cleanups.push(repaintCleanup);
+        if (LQ.screen) {
+          var chartRef = chart;
+          state.cleanups.push(LQ.screen.bindChartFullscreen({
+            root: figure, fill: figure.querySelector('.chart-canvas-wrap'),
+            button: figure.querySelector('[data-chart-full]'), rotateButton: figure.querySelector('[data-chart-rotate]'),
+            getChart: function () { return chartRef; }, height: baseHeight, tools: true
+          }));
+        }
       }
     }
 
@@ -605,6 +617,26 @@
       '</section>';
   }
 
+  /* ============================ 学习路径 ============================ */
+
+  function lessonPathHTML(lesson) {
+    var slideCount = 0, seen = 0, quiz = null;
+    try { slideCount = LQ.coursePlayer.slidesFor(lesson).length; } catch (err) { slideCount = 0; }
+    try { seen = Number(localStorage.getItem('lq.slide.' + lesson.id)) || 0; } catch (err) { seen = 0; }
+    try { quiz = LQ.store.progress.getQuiz(lesson.id); } catch (err) { quiz = null; }
+    var qn = (lesson.quiz && lesson.quiz.questions) ? lesson.quiz.questions.length : 0;
+    var slidesDone = slideCount > 0 && seen >= slideCount - 1;
+    function step(tag, attr, done, title, sub) {
+      return '<li><' + tag + ' ' + attr + (done ? ' class="is-done"' : '') + '><span><b>' + esc(title) + '</b><small>' + esc(sub) + '</small></span></' + (tag === 'a' ? 'a' : 'button') + '></li>';
+    }
+    return '<ol class="lesson-path" aria-label="本课学习路径">' +
+      step('button', 'type="button" data-path="player"', slidesDone, '看分镜课件', slidesDone ? '已看完 · 可随时重听' : (slideCount ? '共 ' + slideCount + ' 页 · 可听可看 · 已到第 ' + (seen + 1) + ' 页' : '一屏一个重点')) +
+      step('button', 'type="button" data-path="reading"', false, '看图练习', '完整讲义 + 分步图表') +
+      step('button', 'type="button" data-path="quiz"', !!quiz, '理解自测', quiz ? '上次 ' + quiz.correct + ' / ' + quiz.total + ' · 可再做' : (qn ? qn + ' 题 · 选完看解析' : '检验是否学会')) +
+      step('a', 'href="#/simulation"', false, '模拟实战', '把知识用在一笔交易里') +
+      '</ol>';
+  }
+
   /* ============================ 页面渲染 ============================ */
 
   function renderLesson(lesson, ctx) {
@@ -651,6 +683,7 @@
       '<a class="btn btn-ghost" href="#/module/' + encodeURIComponent(lesson.moduleId) + '">' + LQ.ui.icon('layers') + '模块详情</a>' +
       '</div>' +
       '</div>' +
+      lessonPathHTML(lesson) +
       '</header>' +
       tocHTML(lesson, moduleLessons) +
       '<div data-course-player></div>' +
@@ -663,6 +696,20 @@
       '</div>';
 
     state.cleanups.push(LQ.coursePlayer.mount(page.querySelector('[data-course-player]'), lesson));
+    page.addEventListener('click', function (event) {
+      var go = event.target && event.target.closest ? event.target.closest('[data-path]') : null;
+      if (!go) return;
+      var where = go.getAttribute('data-path'), target = null;
+      if (where === 'player') target = page.querySelector('[data-course-player]');
+      else if (where === 'quiz') target = page.querySelector('[data-quiz]');
+      else if (where === 'reading') {
+        var toggle = page.querySelector('[data-reading-toggle]');
+        if (toggle && toggle.getAttribute('aria-expanded') !== 'true') toggle.click();
+        target = page.querySelector('[data-full-reading]');
+      }
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (where === 'player' && target) target.focus({ preventScroll: true });
+    });
     page.querySelector('[data-reading-toggle]').addEventListener('click', function (e) {
       var article = page.querySelector('[data-full-reading]'); article.hidden = !article.hidden;
       e.currentTarget.setAttribute('aria-expanded', String(!article.hidden));
